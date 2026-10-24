@@ -11,7 +11,7 @@ En esta entrega lo convertí en un servicio:
 - Un agente nuevo, el **gestor**, que puede registrar solicitudes ante la administración (mudanzas, reservas, reclamos). Como es una acción con efectos reales, el grafo **se detiene y espera aprobación humana** antes de ejecutarla.
 - **Trazas en Arize Phoenix** de cada ejecución, con el costo calculado a partir de los tokens y la latencia por nodo.
 
-El historial de git conserva los commits de la Pre-entrega 6: el código del M6 se movió a `app/` con `git mv`, así que `git log --follow app/graph.py` muestra su evolución completa.
+Este repositorio parte del código de la Pre-entrega 7 ([AppArtCL/ai_eng_m7](https://github.com/AppArtCL/ai_eng_m7)). El historial de las pre-entregas anteriores, incluido el paso del M6 a `app/`, está en ese repositorio.
 
 ---
 
@@ -79,8 +79,8 @@ PENDING ──▶ RUNNING ──▶ DONE
 **Requisitos:** Docker, cuentas en OpenAI y Pinecone, y el índice `edificio-riesco` ya cargado (es el mismo de las Pre-entregas 4 y 6). Para correr fuera de Docker o ejecutar los tests: Python 3.12 y [uv](https://docs.astral.sh/uv/).
 
 ```bash
-git clone https://github.com/AppArtCL/ai_eng_m7.git
-cd ai_eng_m7
+git clone https://github.com/AppArtCL/ai_eng_final.git
+cd ai_eng_final
 cp .env.example .env        # completa OPENAI_API_KEY y PINECONE_API_KEY
 ```
 
@@ -303,7 +303,7 @@ Si tuviera que bajar el costo, empezaría por el supervisor: pasarle un resumen 
 
 ### Capturas
 
-En [`screenshots/`](screenshots/):
+En [`screenshots/`](screenshots/). Son de la corrida de la Pre-entrega 7 que se analiza arriba; se reemplazarán por las capturas de las pruebas de punta a punta de la entrega final.
 
 | Archivo | Qué muestra |
 |---|---|
