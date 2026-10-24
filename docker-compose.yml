@@ -1,0 +1,42 @@
+services:
+  redis:
+    # Redis 8 incluye RedisJSON y RediSearch, que necesita langgraph-checkpoint-redis.
+    image: redis:8.2
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  phoenix:
+    # Dashboard de trazas: http://localhost:6006
+    image: arizephoenix/phoenix:version-20.23.0
+    ports:
+      - "6006:6006"
+    environment:
+      PHOENIX_WORKING_DIR: /mnt/data
+    volumes:
+      - phoenix-data:/mnt/data
+
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      # Dentro de la red de compose, los servicios se llaman por su nombre (no localhost).
+      REDIS_URL: redis://redis:6379/0
+      PHOENIX_COLLECTOR_ENDPOINT: http://phoenix:6006/v1/traces
+    depends_on:
+      redis:
+        condition: service_healthy
+      phoenix:
+        condition: service_started
+
+volumes:
+  redis-data:
+  phoenix-data:

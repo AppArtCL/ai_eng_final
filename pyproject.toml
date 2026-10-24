@@ -1,0 +1,41 @@
+[project]
+name = "ai-eng-final"
+version = "0.1.0"
+description = "Sistema multi-agente (RAG + supervisor + API) para el reglamento del Edificio Riesco 6540 — proyecto final AI Engineering"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "langchain==1.4.2",
+    "langchain-classic==1.0.8",
+    "langchain-core==1.6.5",
+    "langchain-community==0.4.2",
+    "langchain-text-splitters==1.1.2",
+    "langchain-openai==1.6.6",
+    "langchain-pinecone==0.2.13",
+    "langgraph==1.2.15",
+    "pinecone==7.3.0",
+    "rank_bm25==0.2.2",
+    "tiktoken==0.14.0",
+    "pydantic==2.12.2",
+    "langgraph-checkpoint-redis==0.5.2",
+    "redis==8.1.0",
+    "fastapi==0.150.0",
+    "uvicorn[standard]==0.54.0",
+    "arize-phoenix-otel==0.17.2",
+    "openinference-instrumentation-langchain==0.1.79",
+    "pydantic-settings==2.16.0",
+]
+
+[dependency-groups]
+dev = [
+    "fakeredis==2.40.0",
+    "httpx==0.28.1",
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+markers = ["redis: requiere un Redis real con RedisJSON y RediSearch (redis:8)"]

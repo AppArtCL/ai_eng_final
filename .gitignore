@@ -1,0 +1,31 @@
+# Secretos: solo se versiona la plantilla .env.example
+.env
+.env.*
+!.env.example
+
+# Entorno virtual
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Caches de herramientas
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Herramientas locales / sistema
+.remember/
+.playwright-mcp/
+.DS_Store
+.idea/
+.vscode/
