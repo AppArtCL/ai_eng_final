@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from app import config
 from app.chains.structured import crear_cadena_estructurada
+from app.chains.text import crear_cadena_texto
 from app.graph.state import AgentState, Decision
 
 logger = logging.getLogger(__name__)
@@ -67,7 +68,7 @@ def _formatear_aportes(state: AgentState) -> str:
     )
 
 
-def nodo_supervisor(state: AgentState) -> dict:
+async def nodo_supervisor(state: AgentState) -> dict:
     """Decide qué especialista interviene ahora o si la tarea está completa."""
     pasos = state.get("pasos", 0)
 
@@ -85,7 +86,7 @@ def nodo_supervisor(state: AgentState) -> dict:
         f"Aportes hasta ahora (paso {pasos} de {config.settings.max_pasos}):\n"
         f"{_formatear_aportes(state)}"
     )
-    decision = cadena_supervisor.invoke({"contexto": contexto})
+    decision = await cadena_supervisor.ainvoke({"contexto": contexto})
 
     return {
         "next_agent": decision.next,
@@ -104,7 +105,7 @@ Redacta una respuesta clara y breve para el usuario usando SOLO los aportes de l
 - Si el vecino pidió una acción, informa si el gestor la registró (con su número de solicitud) o si fue rechazada en la aprobación humana (con el comentario).
 """
 
-llm_sintesis = config.get_llm()
+cadena_sintesis = crear_cadena_texto()
 
 _NUMERO = re.compile(r"\d+(?:[.,]\d+)?")
 
@@ -128,7 +129,7 @@ def _respuesta_de_respaldo(state: AgentState) -> str:
     )
 
 
-def nodo_sintesis(state: AgentState) -> dict:
+async def nodo_sintesis(state: AgentState) -> dict:
     """Redacta la respuesta final y valida en código que no introduzca cifras ajenas a los aportes."""
     contexto = (
         f"Pregunta original: {state['messages'][0].content}\n\n"
@@ -138,7 +139,7 @@ def nodo_sintesis(state: AgentState) -> dict:
         contexto += f"\n\nAtención: el proceso se cortó al alcanzar el límite de {config.settings.max_pasos} pasos."
 
     mensajes = [SystemMessage(content=PROMPT_SINTESIS), HumanMessage(content=contexto)]
-    respuesta = str(llm_sintesis.invoke(mensajes).content)
+    respuesta = await cadena_sintesis.ainvoke(mensajes)
 
     # Validación determinista: cada número de la respuesta debe venir del prompt, la pregunta o un aporte
     # (el prompt aporta, por ejemplo, el número del edificio).
@@ -154,7 +155,7 @@ def nodo_sintesis(state: AgentState) -> dict:
                 "indica que no se alcanzó a calcular."
             )),
         ]
-        respuesta = str(llm_sintesis.invoke(mensajes).content)
+        respuesta = await cadena_sintesis.ainvoke(mensajes)
         inventados = _numeros_inventados(respuesta, fuentes)
         if inventados:
             logger.warning("El reintento sigue con números ajenos %s; se usa la respuesta de respaldo.", sorted(inventados))

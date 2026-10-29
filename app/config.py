@@ -30,6 +30,9 @@ class Settings(BaseSettings):
 
     # Modelos
     openai_model: str = "gpt-4.1-mini"
+    # Respaldo si el modelo principal falla tras sus reintentos. Vacío desactiva el fallback.
+    openai_fallback_model: str = "gpt-4o-mini"
+    llm_timeout_seg: Annotated[float, Field(gt=0)] = 60  # tope por llamada al LLM
     embedding_model: str = "text-embedding-3-small"
     embedding_dim: PositiveInt = 1536
 
@@ -44,11 +47,15 @@ class Settings(BaseSettings):
     chunk_size: PositiveInt = 600
     chunk_overlap: Annotated[int, Field(ge=0)] = 100
     encoding_name: str = "cl100k_base"
-    rag_top_k: PositiveInt = 5
+    rag_top_k: PositiveInt = 5  # fragmentos que recibe el agente
+    rag_candidatos: PositiveInt = 20  # fragmentos que trae cada retriever antes del re-ranking
     rag_peso_bm25: Annotated[float, Field(ge=0, le=1)] = 0.5  # el vectorial recibe 1 - este peso
+    rerank_activo: bool = True
+    rerank_model: str = "bge-reranker-v2-m3"  # modelo hospedado en Pinecone (misma API key)
 
     # Grafo
     max_pasos: PositiveInt = 6
+    job_timeout_seg: PositiveInt = 300  # tope para una ejecución completa del grafo
 
     # Redis: estado de los jobs, cola de tareas y checkpoints de LangGraph
     redis_url: str = Field("redis://localhost:6379/0", pattern=r"^rediss?://")
@@ -65,6 +72,10 @@ class Settings(BaseSettings):
             raise ValueError(
                 f"CHUNK_OVERLAP ({self.chunk_overlap}) debe ser menor que CHUNK_SIZE ({self.chunk_size})."
             )
+        if self.rag_candidatos < self.rag_top_k:
+            raise ValueError(
+                f"RAG_CANDIDATOS ({self.rag_candidatos}) debe ser mayor o igual que RAG_TOP_K ({self.rag_top_k})."
+            )
         return self
 
 
@@ -79,10 +90,17 @@ def get_embeddings() -> OpenAIEmbeddings:
     )
 
 
-def get_llm() -> ChatOpenAI:
+def get_llm(model: str | None = None) -> ChatOpenAI:
+    """Cliente del LLM (async nativo: ainvoke/astream usan el SDK AsyncOpenAI)."""
     return ChatOpenAI(
-        model=settings.openai_model,
+        model=model or settings.openai_model,
         api_key=settings.openai_api_key,
         temperature=0,
-        max_retries=3,
+        max_retries=3,  # reintenta errores de red, 429 y 5xx con backoff
+        timeout=settings.llm_timeout_seg,
     )
+
+
+def get_llm_respaldo() -> ChatOpenAI | None:
+    """Modelo de respaldo para with_fallbacks, o None si está desactivado."""
+    return get_llm(settings.openai_fallback_model) if settings.openai_fallback_model else None

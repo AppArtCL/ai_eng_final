@@ -29,7 +29,7 @@ def es_critica(state: AgentState) -> bool:
     return state.get("next_agent") in AGENTES_CON_EFECTOS
 
 
-def nodo_aprobacion_humana(state: AgentState) -> Command[Literal["gestor", "supervisor"]]:
+async def nodo_aprobacion_humana(state: AgentState) -> Command[Literal["gestor", "supervisor"]]:
     """Pausa el grafo y, según la decisión humana, ejecuta la acción o vuelve al supervisor."""
     decision = interrupt({
         "accion": state["instruccion"],

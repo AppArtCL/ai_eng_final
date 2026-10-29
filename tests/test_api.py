@@ -133,3 +133,50 @@ def test_fastapi_no_traza_peticiones_http():
     """FastAPI >=0.150 traza cada petición por defecto; el polling de GET /tasks inflaría
     el conteo de trazas y falsearía la latencia p95 de las ejecuciones en Phoenix."""
     assert crear_app()._telemetry["tracing"] is False
+
+
+# --- GET /tasks/{id}/events (SSE) -------------------------------------------------------
+
+def _eventos_sse(texto: str) -> list[dict]:
+    """Parsea el cuerpo text/event-stream en una lista de {id, event, data}."""
+    import json
+    bloques = [b for b in texto.split("\n\n") if b.strip() and not b.startswith(":")]
+    eventos = []
+    for bloque in bloques:
+        campos = dict(linea.split(": ", 1) for linea in bloque.splitlines() if ": " in linea)
+        eventos.append({"id": campos.get("id"), "event": campos.get("event"), "data": json.loads(campos["data"])})
+    return eventos
+
+
+async def test_events_transmite_el_progreso_y_cierra_al_terminar(cliente, r):
+    from app.queue import events
+    job_id = await jobs.crear_job(r, "¿Puedo tener mascota?")
+    await events.publicar(r, job_id, "estado", status="RUNNING")
+    await events.publicar(r, job_id, "nodo", nodo="supervisor")
+    await events.publicar(r, job_id, "token", texto="Sí")
+    await events.publicar(r, job_id, "estado", status="DONE", respuesta="Sí")
+
+    resp = await cliente.get(f"/tasks/{job_id}/events")
+
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/event-stream")
+    eventos = _eventos_sse(resp.text)
+    assert [e["event"] for e in eventos] == ["estado", "nodo", "token", "estado"]
+    assert eventos[-1]["data"] == {"status": "DONE", "respuesta": "Sí"}
+
+
+async def test_events_con_last_event_id_retoma_desde_ahi(cliente, r):
+    from app.queue import events
+    job_id = await jobs.crear_job(r, "x")
+    await events.publicar(r, job_id, "estado", status="WAITING_APPROVAL")
+    await events.publicar(r, job_id, "estado", status="RUNNING")
+    await events.publicar(r, job_id, "estado", status="DONE")
+    primero = _eventos_sse((await cliente.get(f"/tasks/{job_id}/events")).text)[0]
+
+    resp = await cliente.get(f"/tasks/{job_id}/events", headers={"Last-Event-ID": primero["id"]})
+
+    assert [e["data"]["status"] for e in _eventos_sse(resp.text)] == ["RUNNING", "DONE"]
+
+
+async def test_events_de_job_inexistente_404(cliente):
+    assert (await cliente.get("/tasks/no-existe/events")).status_code == 404

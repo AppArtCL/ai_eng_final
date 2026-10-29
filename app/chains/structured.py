@@ -55,26 +55,41 @@ def validar_respuesta_completa(resultado: dict[str, Any]) -> BaseModel:
     return resultado["parsed"]
 
 
-def crear_cadena_estructurada(
-    prompt: ChatPromptTemplate,
-    esquema: type[M],
-    llm: BaseChatModel | None = None,
-) -> Runnable[dict, M]:
-    """Arma prompt | LLM estructurado | validación, con reintentos ante respuestas inválidas.
-
-    Solo se reintenta RespuestaInvalida: los errores de red y de rate limit ya los reintenta el
-    cliente de OpenAI (max_retries), y un error de autenticación no se arregla reintentando.
-    """
-    llm = llm or config.get_llm()
+def _cadena_con_reintentos(prompt: ChatPromptTemplate, esquema: type[BaseModel], llm: BaseChatModel) -> Runnable:
+    """prompt | LLM estructurado | validación, reintentando solo las respuestas inválidas."""
     # Con include_raw=True la salida es siempre el dict {"raw", "parsed", "parsing_error"}, pero
     # LangChain la tipa como `dict | BaseModel` (una sola firma para ambos modos).
     estructurado = cast(Runnable[Any, dict[str, Any]], llm.with_structured_output(esquema, include_raw=True))
     cadena = prompt | estructurado | RunnableLambda(validar_respuesta_completa)
-    con_reintentos = cadena.with_retry(
+    return cadena.with_retry(
         retry_if_exception_type=(RespuestaInvalida,),
         stop_after_attempt=INTENTOS,
         wait_exponential_jitter=True,
     )
+
+
+def crear_cadena_estructurada(
+    prompt: ChatPromptTemplate,
+    esquema: type[M],
+    llm: BaseChatModel | None = None,
+    respaldo: BaseChatModel | None = None,
+) -> Runnable[dict, M]:
+    """Arma la cadena estructurada con dos niveles de resiliencia.
+
+    1. with_retry: solo reintenta RespuestaInvalida (salida truncada o que no calza con el esquema).
+       Los errores de red, 429 y 5xx ya los reintenta el cliente de OpenAI (max_retries), y un
+       error de autenticación no se arregla reintentando.
+    2. with_fallbacks: si el modelo principal falla igual (agotó sus reintentos, el modelo no existe,
+       el proveedor está caído), la cadena completa se repite con el modelo de respaldo.
+
+    Sin argumentos usa los modelos de la configuración. Si se pasa `llm`, el respaldo es solo el
+    que se pase explícitamente (los tests controlan ambos).
+    """
+    if llm is None:
+        llm, respaldo = config.get_llm(), respaldo or config.get_llm_respaldo()
+    cadena = _cadena_con_reintentos(prompt, esquema, llm)
+    if respaldo is not None:
+        cadena = cadena.with_fallbacks([_cadena_con_reintentos(prompt, esquema, respaldo)])
     # validar_respuesta_completa devuelve el objeto que parseó with_structured_output(esquema),
     # o sea, una instancia de M; el verificador de tipos no puede inferirlo a través del dict.
-    return cast(Runnable[dict, M], con_reintentos)
+    return cast(Runnable[dict, M], cadena)

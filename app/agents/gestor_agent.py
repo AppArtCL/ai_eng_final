@@ -1,10 +1,9 @@
 import logging
 
-from langchain.agents import create_agent
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
-from app import config
 from app.graph.state import AgentState
+from app.agents.base import crear_agente
 from app.agents.tools import registrar_solicitud
 
 logger = logging.getLogger(__name__)
@@ -17,18 +16,14 @@ No inventes datos: si falta fecha, hora o departamento, no registres nada e info
 Responde breve, con el número de solicitud que devolvió la herramienta.
 """
 
-agente_gestor = create_agent(
-    model=config.get_llm(),
-    tools=[registrar_solicitud],
-    system_prompt=PROMPT_GESTOR,
-)
+agente_gestor = crear_agente([registrar_solicitud], PROMPT_GESTOR)
 
 
-def nodo_gestor(state: AgentState) -> dict:
+async def nodo_gestor(state: AgentState) -> dict:
     """Ejecuta la acción aprobada y verifica en código que la herramienta realmente se usó."""
     instruccion = state.get("instruccion") or state["messages"][0].content
     mensaje = f"Acción APROBADA por un humano. Ejecútala ahora con tu herramienta:\n{instruccion}"
-    resultado = agente_gestor.invoke({"messages": [HumanMessage(content=mensaje)]})
+    resultado = await agente_gestor.ainvoke({"messages": [HumanMessage(content=mensaje)]})
     respuesta = resultado["messages"][-1].content
 
     # Validación determinista: sin ToolMessage no hubo registro, diga lo que diga el LLM.

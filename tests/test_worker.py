@@ -32,6 +32,12 @@ class GrafoFalso:
         if self.error:
             raise self.error
 
+    async def astream(self, entrada, config, stream_mode=None):
+        """El worker ejecuta con astream; este falso no emite eventos de progreso."""
+        await self.ainvoke(entrada, config)
+        return
+        yield  # convierte la función en un generador async
+
     async def aget_state(self, config):
         if not self.entradas:
             return self.previo
@@ -302,3 +308,54 @@ async def test_job_interrumpido_retoma_desde_checkpoints_en_redis(r, redis_url):
         grafo = nodos.grafo(saver)
         await worker.procesar_mensaje(r, grafo, mensaje)
         await _verificar_retomado(r, grafo, nodos, job_id)
+
+
+# --- Progreso en vivo (astream → eventos) y tope de latencia -------------------------
+
+async def _eventos(r, job_id) -> list[tuple[str, dict]]:
+    from app.queue import events
+    return [(tipo, datos) for _, tipo, datos in await events.leer(r, job_id, desde="0", bloqueo_ms=10)]
+
+
+async def test_estados_del_job_se_publican_como_eventos(r):
+    job_id, mensaje = await _job_en_cola(r)
+
+    await worker.procesar_mensaje(r, GrafoFalso(), mensaje)
+
+    estados = [datos["status"] for tipo, datos in await _eventos(r, job_id) if tipo == "estado"]
+    assert estados == ["RUNNING", "DONE"]
+
+
+async def test_ejecutar_grafo_publica_nodos_y_tokens_de_la_sintesis(r):
+    """Grafo real con un LLM falso que transmite token a token (GenericFakeChatModel)."""
+    from langchain_core.language_models import GenericFakeChatModel
+
+    def supervisor(state):
+        return {"next_agent": "FINISH", "instruccion": "", "razon": "fake", "task_completed": True}
+
+    async def sintesis(state):
+        llm = GenericFakeChatModel(messages=iter([AIMessage(content="Sí, con autorización previa")]))
+        return {"messages": [await llm.ainvoke(state["messages"])]}
+
+    grafo = construir_grafo(InMemorySaver(), nodos={"supervisor": supervisor, "sintesis": sintesis})
+    job_id, _ = await _job_en_cola(r, PREGUNTA)
+
+    await worker.ejecutar_grafo(r, grafo, worker.estado_inicial(PREGUNTA),
+                                {"configurable": {"thread_id": job_id}}, job_id)
+
+    eventos = await _eventos(r, job_id)
+    assert [datos["nodo"] for tipo, datos in eventos if tipo == "nodo"] == ["supervisor", "sintesis"]
+    tokens = [datos["texto"] for tipo, datos in eventos if tipo == "token"]
+    assert len(tokens) > 1 and "".join(tokens) == "Sí, con autorización previa"
+
+
+async def test_job_que_supera_el_tope_queda_failed(r, monkeypatch):
+    from app import config
+    monkeypatch.setattr(config.settings, "job_timeout_seg", 0.1)
+    job_id, mensaje = await _job_en_cola(r)
+
+    await worker.procesar_mensaje(r, GrafoQueSeCuelga(), mensaje)
+
+    job = await jobs.obtener_job(r, job_id)
+    assert job["status"] == "FAILED"
+    assert job["error"].startswith("TimeoutError: la ejecución superó")

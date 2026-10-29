@@ -15,14 +15,14 @@ def _cadena_falsa(decision: DecisionSupervisor, entradas: list):
     return RunnableLambda(responder)
 
 
-def test_decision_de_la_cadena_pasa_al_estado(monkeypatch):
+async def test_decision_de_la_cadena_pasa_al_estado(monkeypatch):
     entradas = []
     decision = DecisionSupervisor(next="investigador", instruccion="Busca el horario de mudanzas", razon="paso 1")
     monkeypatch.setattr(supervisor, "cadena_supervisor", _cadena_falsa(decision, entradas))
     estado = {**estado_inicial("¿Puedo mudarme el sábado?"),
               "contribuciones": [{"agente": "analista", "instruccion": "x", "aporte": "12 horas"}]}
 
-    resultado = supervisor.nodo_supervisor(estado)
+    resultado = await supervisor.nodo_supervisor(estado)
 
     assert resultado == {"next_agent": "investigador", "instruccion": "Busca el horario de mudanzas",
                          "razon": "paso 1", "task_completed": False}
@@ -30,20 +30,20 @@ def test_decision_de_la_cadena_pasa_al_estado(monkeypatch):
     assert "¿Puedo mudarme el sábado?" in contexto and "12 horas" in contexto
 
 
-def test_finish_marca_la_tarea_completa(monkeypatch):
+async def test_finish_marca_la_tarea_completa(monkeypatch):
     decision = DecisionSupervisor(next="FINISH", instruccion="", razon="rúbrica 4")
     monkeypatch.setattr(supervisor, "cadena_supervisor", _cadena_falsa(decision, []))
 
-    assert supervisor.nodo_supervisor(estado_inicial("x"))["task_completed"] is True
+    assert (await supervisor.nodo_supervisor(estado_inicial("x")))["task_completed"] is True
 
 
-def test_limite_de_pasos_corta_sin_llamar_al_llm(monkeypatch):
+async def test_limite_de_pasos_corta_sin_llamar_al_llm(monkeypatch):
     entradas = []
     monkeypatch.setattr(supervisor, "cadena_supervisor",
                         _cadena_falsa(DecisionSupervisor(next="analista", instruccion="", razon=""), entradas))
     estado = {**estado_inicial("x"), "pasos": config.settings.max_pasos}
 
-    resultado = supervisor.nodo_supervisor(estado)
+    resultado = await supervisor.nodo_supervisor(estado)
 
     assert resultado["next_agent"] == "FINISH" and resultado["task_completed"] is True
     assert entradas == []

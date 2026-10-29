@@ -8,7 +8,8 @@ import logging
 
 from openinference.instrumentation.langchain import LangChainInstrumentor
 from opentelemetry import trace
-from phoenix.otel import TracerProvider, register
+from opentelemetry.sdk.trace import TracerProvider
+from phoenix.otel import register
 
 from app import config
 

@@ -1,8 +1,7 @@
-from langchain.agents import create_agent
 from langchain_core.messages import AIMessage, HumanMessage
 
-from app import config
 from app.graph.state import AgentState
+from app.agents.base import crear_agente
 from app.agents.tools import calculadora
 
 PROMPT_ANALISTA = """Eres el agente analista del Reglamento de Copropiedad del Edificio Riesco 6540, encargado de hacer todos los cálculos que se requieran.
@@ -12,11 +11,7 @@ Muestra la operación realizada y el resultado, incluyendo las unidades (por eje
 Si faltan datos para hacer los cálculos, no hagas ningún cálculo e informa explícitamente la falta de datos.
 """
 
-agente_analista = create_agent(
-    model=config.get_llm(),
-    tools=[calculadora],
-    system_prompt=PROMPT_ANALISTA,
-)
+agente_analista = crear_agente([calculadora], PROMPT_ANALISTA)
 
 SIN_DATOS = "(sin datos del investigador)"
 
@@ -29,13 +24,13 @@ def _ultimo_aporte_investigador(state: AgentState) -> str:
     )
 
 
-def nodo_analista(state: AgentState) -> dict:
+async def nodo_analista(state: AgentState) -> dict:
     """Ejecuta al analista con la instrucción del supervisor y solo los datos del investigador."""
     instruccion = state.get("instruccion") or state["messages"][0].content
     datos = _ultimo_aporte_investigador(state)
     mensaje = f"Tarea: {instruccion}\n\nDatos disponibles:\n{datos}"
 
-    resultado = agente_analista.invoke({"messages": [HumanMessage(content=mensaje)]})
+    resultado = await agente_analista.ainvoke({"messages": [HumanMessage(content=mensaje)]})
     respuesta = resultado["messages"][-1].content
     return {
         "messages": [AIMessage(content=respuesta, name="analista")],

@@ -5,10 +5,9 @@ from datetime import datetime, timezone
 from functools import lru_cache
 from typing import Literal
 
-import redis
 from langchain_core.tools import tool
+from redis.asyncio import Redis
 
-from app import config
 from app.rag.rag_system import RAGSystem
 
 CLAVE_SOLICITUDES = "solicitudes:administracion"
@@ -22,12 +21,16 @@ _MAX_EXPONENTE = 100
 
 @lru_cache(maxsize=1)
 def get_rag() -> RAGSystem:
-    """Construye el RAGSystem una sola vez y lo reutiliza en cada búsqueda."""
-    return RAGSystem()
+    """Construye el RAGSystem una sola vez y lo reutiliza en cada búsqueda.
+
+    Construirlo lee los documentos y arma el índice BM25 en memoria (CPU, síncrono): la API lo
+    precalienta en un thread al arrancar, para que la primera búsqueda no bloquee el event loop.
+    """
+    return RAGSystem.desde_config()
 
 
 @tool
-def buscar_en_reglamento(pregunta: str) -> str:
+async def buscar_en_reglamento(pregunta: str) -> str:
     """Busca información en el Reglamento de Copropiedad del Edificio Riesco 6540.
 
     Úsala para cualquier pregunta sobre normas, prohibiciones, horarios, montos o
@@ -36,13 +39,19 @@ def buscar_en_reglamento(pregunta: str) -> str:
 
     Ejemplo de entrada: "horario permitido para mudanzas"
     """
-    documentos = get_rag().retrieve(pregunta)
+    documentos = await get_rag().aretrieve(pregunta)
     if not documentos:
         return "No se encontró información relevante en el reglamento."
     return "\n\n".join(
-        f"[Fuente: {d.metadata.get('source', '?')} | Sección: {d.metadata.get('seccion', '?')}]\n{d.page_content}"
+        f"[Fuente: {d.metadata.get('source', '?')} | Sección: {d.metadata.get('seccion', '?')}{_relevancia(d)}]\n{d.page_content}"
         for d in documentos
     )
+
+def _relevancia(documento) -> str:
+    """Puntaje del re-ranker (0 a 1), si lo hubo: le indica al agente cuánto confiar en el fragmento."""
+    score = documento.metadata.get("relevance_score")
+    return f" | Relevancia: {score:.2f}" if score is not None else ""
+
 
 def _evaluar_nodo(nodo):
     """Recorre el árbol de la expresión y evalúa solo nodos permitidos."""
@@ -75,14 +84,23 @@ def calculadora(expresion: str) -> str:
         return f"Error al calcular '{expresion}': {e}"
 
 
-@lru_cache(maxsize=1)
-def get_redis() -> redis.Redis:
-    """Cliente Redis síncrono: la herramienta corre dentro del thread del nodo, no en el event loop."""
-    return redis.Redis.from_url(config.settings.redis_url, decode_responses=True)
+_redis: Redis | None = None
+
+
+def configurar_redis(cliente: Redis) -> None:
+    """La API entrega su cliente redis.asyncio al arrancar: un solo pool de conexiones para todo."""
+    global _redis
+    _redis = cliente
+
+
+def get_redis() -> Redis:
+    if _redis is None:
+        raise RuntimeError("Redis no está configurado: la API lo hace en su lifespan (configurar_redis).")
+    return _redis
 
 
 @tool
-def registrar_solicitud(tipo: Literal["mudanza", "reserva", "reclamo"], detalle: str) -> str:
+async def registrar_solicitud(tipo: Literal["mudanza", "reserva", "reclamo"], detalle: str) -> str:
     """Registra una solicitud formal ante la administración del Edificio Riesco 6540.
 
     Tiene efectos reales: la solicitud queda en la bandeja de la administración.
@@ -94,5 +112,5 @@ def registrar_solicitud(tipo: Literal["mudanza", "reserva", "reclamo"], detalle:
     Ejemplo de entrada: tipo="mudanza", detalle="sábado 10:00 a 14:00, depto 101"
     """
     solicitud = {"tipo": tipo, "detalle": detalle, "creado_en": datetime.now(timezone.utc).isoformat()}
-    numero = get_redis().rpush(CLAVE_SOLICITUDES, json.dumps(solicitud, ensure_ascii=False))
+    numero = await get_redis().rpush(CLAVE_SOLICITUDES, json.dumps(solicitud, ensure_ascii=False))
     return f"Solicitud de {tipo} registrada con el n.º {numero}: {detalle}"

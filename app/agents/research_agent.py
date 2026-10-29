@@ -1,8 +1,7 @@
-from langchain.agents import create_agent
 from langchain_core.messages import AIMessage, HumanMessage
 
-from app import config
 from app.graph.state import AgentState
+from app.agents.base import crear_agente
 from app.agents.tools import buscar_en_reglamento
 
 PROMPT_INVESTIGADOR = """Eres el agente investigador del Reglamento de Copropiedad del Edificio Riesco 6540.
@@ -12,17 +11,13 @@ Si el reglamento no contiene el dato pedido, dilo explícitamente.
 Responde breve, con los datos concretos (números, horarios, montos) y la fuente de cada uno.
 """
 
-agente_investigador = create_agent(
-    model=config.get_llm(),
-    tools=[buscar_en_reglamento],
-    system_prompt=PROMPT_INVESTIGADOR,
-)
+agente_investigador = crear_agente([buscar_en_reglamento], PROMPT_INVESTIGADOR)
 
 
-def nodo_investigador(state: AgentState) -> dict:
+async def nodo_investigador(state: AgentState) -> dict:
     """Ejecuta al investigador solo con la instrucción del supervisor (contexto acotado)."""
     instruccion = state.get("instruccion") or state["messages"][0].content
-    resultado = agente_investigador.invoke({"messages": [HumanMessage(content=instruccion)]})
+    resultado = await agente_investigador.ainvoke({"messages": [HumanMessage(content=instruccion)]})
     respuesta = resultado["messages"][-1].content
     return {
         "messages": [AIMessage(content=respuesta, name="investigador")],

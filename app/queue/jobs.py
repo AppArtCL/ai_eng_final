@@ -11,10 +11,11 @@ arrancar; el worker retoma el grafo desde su último checkpoint en Redis.
 import json
 import uuid
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Literal, cast
 
 from redis.asyncio import Redis
 from redis.exceptions import WatchError
+from redis.typing import EncodableT, FieldT
 
 Estado = Literal["PENDING", "RUNNING", "WAITING_APPROVAL", "DONE", "FAILED"]
 
@@ -69,7 +70,7 @@ async def obtener_job(r: Redis, job_id: str) -> dict | None:
 
 async def actualizar_job(r: Redis, job_id: str, **campos) -> None:
     """Actualiza campos del job (status, respuesta, error, aprobacion_pendiente) y su updated_at."""
-    mapping = {campo: _serializar(campo, valor) for campo, valor in campos.items()}
+    mapping: dict[FieldT, EncodableT] = {campo: _serializar(campo, valor) for campo, valor in campos.items()}
     mapping["updated_at"] = _ahora()
     await r.hset(_clave(job_id), mapping=mapping)
 
@@ -79,7 +80,10 @@ async def tomar_mensaje(r: Redis, timeout: float) -> str | None:
 
     El movimiento es atómico: no existe un instante en que el mensaje no esté en ninguna de las dos listas.
     """
-    return await r.blmove(COLA, PROCESANDO, timeout, src="RIGHT", dest="LEFT")
+    # Redis acepta timeouts con decimales (desde 6.0), aunque los tipos de redis-py declaren int.
+    # Con decode_responses=True la respuesta es str, no bytes.
+    crudo = await r.blmove(COLA, PROCESANDO, timeout, src="RIGHT", dest="LEFT")  # pyright: ignore[reportArgumentType]
+    return cast(str | None, crudo)
 
 
 async def confirmar_mensaje(r: Redis, crudo: str) -> None:

@@ -99,3 +99,40 @@ def test_cadena_no_reintenta_errores_que_no_son_del_contrato():
     with pytest.raises(PermissionError):
         crear_cadena_estructurada(PROMPT, Ruteo, llm=llm).invoke({"contexto": "x"})
     assert llm.llamadas == 1
+
+
+# --- with_fallbacks: modelo de respaldo ----------------------------------------------
+
+class LLMCaido(LLMGuionado):
+    """El proveedor no responde (por ejemplo, un 503 que el cliente ya reintentó sin éxito)."""
+
+    def with_structured_output(self, esquema, include_raw=False):
+        def fallar(_):
+            self.llamadas += 1
+            raise ConnectionError("503 Service Unavailable")
+        return RunnableLambda(fallar)
+
+
+def test_cadena_usa_el_respaldo_si_el_principal_falla():
+    principal = LLMCaido()
+    respaldo = LLMGuionado(_salida(parsed=Ruteo(next="FINISH")))
+
+    resultado = crear_cadena_estructurada(PROMPT, Ruteo, llm=principal, respaldo=respaldo).invoke({"contexto": "x"})
+
+    assert resultado == Ruteo(next="FINISH")
+    assert principal.llamadas == 1  # un ConnectionError no se reintenta en la cadena: pasa directo al respaldo
+    assert respaldo.llamadas == 1
+
+
+def test_cadena_de_texto_usa_el_respaldo_si_el_principal_falla():
+    from langchain_core.messages import HumanMessage
+
+    from app.chains.text import crear_cadena_texto
+
+    def caido(_):
+        raise ConnectionError("503 Service Unavailable")
+
+    cadena = crear_cadena_texto(llm=RunnableLambda(caido),
+                                respaldo=RunnableLambda(lambda _: AIMessage(content="desde el respaldo")))
+
+    assert cadena.invoke([HumanMessage(content="hola")]) == "desde el respaldo"

@@ -1,6 +1,5 @@
 import json
 
-import fakeredis
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command
@@ -30,16 +29,16 @@ def test_finish_no_es_critico():
 # --- Herramienta con efecto secundario ----------------------------------------
 
 @pytest.fixture
-def redis_falso(monkeypatch):
-    cliente = fakeredis.FakeRedis(decode_responses=True)
-    monkeypatch.setattr(tools, "get_redis", lambda: cliente)
-    return cliente
+def redis_falso(monkeypatch, r):
+    monkeypatch.setattr(tools, "_redis", None)
+    tools.configurar_redis(r)  # lo mismo que hace el lifespan de la API
+    return r
 
 
-def test_registrar_solicitud_escribe_en_redis(redis_falso):
-    salida = tools.registrar_solicitud.invoke({"tipo": "mudanza", "detalle": "sábado 10:00, depto 101"})
+async def test_registrar_solicitud_escribe_en_redis(redis_falso):
+    salida = await tools.registrar_solicitud.ainvoke({"tipo": "mudanza", "detalle": "sábado 10:00, depto 101"})
 
-    guardadas = redis_falso.lrange(tools.CLAVE_SOLICITUDES, 0, -1)
+    guardadas = await redis_falso.lrange(tools.CLAVE_SOLICITUDES, 0, -1)
     assert len(guardadas) == 1
     solicitud = json.loads(guardadas[0])
     assert solicitud["tipo"] == "mudanza"
@@ -139,7 +138,7 @@ class AgenteFalso:
         self.mensajes_respuesta = mensajes_respuesta
         self.recibido = None
 
-    def invoke(self, entrada):
+    async def ainvoke(self, entrada):
         self.recibido = entrada["messages"][0].content
         return {"messages": self.mensajes_respuesta}
 
@@ -147,27 +146,33 @@ class AgenteFalso:
 ESTADO_GESTOR = {"instruccion": "Registrar mudanza sábado 10:00 depto 101", "messages": [], "contribuciones": []}
 
 
-def test_gestor_recibe_la_accion_como_aprobada(monkeypatch):
+async def test_gestor_recibe_la_accion_como_aprobada(monkeypatch):
     from langchain_core.messages import AIMessage, ToolMessage
     from app.agents import gestor_agent
     falso = AgenteFalso([ToolMessage(content="Solicitud de mudanza registrada con el n.º 1", tool_call_id="1"),
                          AIMessage(content="Listo, solicitud n.º 1")])
     monkeypatch.setattr(gestor_agent, "agente_gestor", falso)
 
-    salida = gestor_agent.nodo_gestor(ESTADO_GESTOR)
+    salida = await gestor_agent.nodo_gestor(ESTADO_GESTOR)
 
     assert "APROBADA" in falso.recibido
     assert "Registrar mudanza sábado 10:00 depto 101" in falso.recibido
     assert salida["contribuciones"][0]["aporte"] == "Listo, solicitud n.º 1"
 
 
-def test_gestor_sin_llamar_herramienta_lo_declara(monkeypatch):
+async def test_gestor_sin_llamar_herramienta_lo_declara(monkeypatch):
     from langchain_core.messages import AIMessage
     from app.agents import gestor_agent
     falso = AgenteFalso([AIMessage(content="He solicitado la aprobación humana, confirma por favor")])
     monkeypatch.setattr(gestor_agent, "agente_gestor", falso)
 
-    salida = gestor_agent.nodo_gestor(ESTADO_GESTOR)
+    salida = await gestor_agent.nodo_gestor(ESTADO_GESTOR)
 
     aporte = salida["contribuciones"][0]["aporte"]
     assert aporte.startswith("No se registró ninguna solicitud")
+
+
+def test_herramienta_sin_redis_configurado_falla_claro(monkeypatch):
+    monkeypatch.setattr(tools, "_redis", None)
+    with pytest.raises(RuntimeError, match="lifespan"):
+        tools.get_redis()
