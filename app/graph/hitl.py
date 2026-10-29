@@ -8,7 +8,7 @@ from typing import Literal
 
 from langgraph.types import Command, interrupt
 
-from app.graph.state import AgentState
+from app.graph.state import AgentState, nueva_contribucion
 
 logger = logging.getLogger(__name__)
 
@@ -46,9 +46,7 @@ async def nodo_aprobacion_humana(state: AgentState) -> Command[Literal["gestor",
 
     # Rechazo: queda registrado como aporte para que el supervisor no lo vuelva a intentar
     # y la síntesis pueda informarlo.
-    rechazo = {
-        "agente": "gestor",
-        "instruccion": state["instruccion"],
-        "aporte": f"Acción rechazada por el humano. Comentario: {comentario or '(sin comentario)'}",
-    }
+    rechazo = nueva_contribucion(
+        "gestor", state["instruccion"], f"Acción rechazada por el humano. Comentario: {comentario or '(sin comentario)'}"
+    )
     return Command(goto="supervisor", update={"aprobacion": aprobacion, "contribuciones": [rechazo], "pasos": 1})

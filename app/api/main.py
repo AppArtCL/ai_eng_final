@@ -11,7 +11,7 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Annotated, Literal
+from typing import Annotated
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -21,7 +21,15 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 
 from app import config
 from app.agents import tools
-from app.api.schemas import DecisionHumana, EstadoTarea, NuevaTarea, TareaEncolada
+from app.api.schemas import (
+    DecisionHumana,
+    ErrorRespuesta,
+    EstadoTarea,
+    JobId,
+    NuevaTarea,
+    Salud,
+    TareaEncolada,
+)
 from app.graph.builder import checkpointer_redis, construir_grafo
 from app.observability.tracing import cerrar_trazas, configurar_trazas
 from app.queue import events, jobs
@@ -75,7 +83,7 @@ def _redis(request: Request) -> Redis:
     return request.app.state.redis
 
 
-async def _job_existente(job_id: str, request: Request) -> str:
+async def _job_existente(job_id: JobId, request: Request) -> str:
     """Dependencia: 404 si el job no existe. Se resuelve antes de que empiece la respuesta,
     algo necesario en el endpoint SSE: una vez abierto el stream ya no se puede cambiar el status."""
     if await jobs.obtener_job(_redis(request), job_id) is None:
@@ -90,6 +98,12 @@ def crear_app() -> FastAPI:
         lifespan=lifespan,
         # Solo se trazan las ejecuciones del agente (worker), no cada petición HTTP del polling.
         telemetry={"tracing": False},
+        # Todos los endpoints dependen de Redis: si se cae, responden 503 (ver redis_no_disponible).
+        responses={503: {"model": ErrorRespuesta, "description": "Redis no disponible"}},
+        openapi_tags=[
+            {"name": "tareas", "description": "Preguntas al equipo de agentes y aprobación humana de acciones"},
+            {"name": "sistema", "description": "Estado del servicio"},
+        ],
     )
 
     @app.exception_handler(RedisConnectionError)
@@ -97,21 +111,28 @@ def crear_app() -> FastAPI:
         logger.error("Redis no disponible: %s", exc)
         return JSONResponse(status_code=503, content={"detail": "Redis no disponible"})
 
-    @app.post("/tasks", status_code=202, response_model=TareaEncolada)
+    @app.post("/tasks", status_code=202, response_model=TareaEncolada, tags=["tareas"],
+              summary="Encolar una pregunta o solicitud")
     async def crear_tarea(tarea: NuevaTarea, request: Request) -> TareaEncolada:
         """Encola la pregunta y devuelve el job_id sin esperar al LLM."""
         job_id = await jobs.crear_job(_redis(request), tarea.pregunta)
         return TareaEncolada(job_id=job_id, status="PENDING")
 
-    @app.get("/tasks/{job_id}", response_model=EstadoTarea)
-    async def estado_tarea(job_id: str, request: Request) -> EstadoTarea:
+    @app.get("/tasks/{job_id}", response_model=EstadoTarea, tags=["tareas"],
+             summary="Consultar el estado de un trabajo (polling)",
+             responses={404: {"model": ErrorRespuesta, "description": "Tarea no encontrada"}})
+    async def estado_tarea(job_id: JobId, request: Request) -> EstadoTarea:
+        """Estado actual: PENDING, RUNNING, WAITING_APPROVAL, DONE o FAILED, con la respuesta o el error."""
         job = await jobs.obtener_job(_redis(request), job_id)
         if job is None:
             raise HTTPException(status_code=404, detail="Tarea no encontrada")
         return EstadoTarea(**job)
 
-    @app.post("/tasks/{job_id}/approve", status_code=202, response_model=TareaEncolada)
-    async def aprobar_tarea(job_id: str, decision: DecisionHumana, request: Request) -> TareaEncolada:
+    @app.post("/tasks/{job_id}/approve", status_code=202, response_model=TareaEncolada, tags=["tareas"],
+              summary="Aprobar o rechazar una acción pendiente",
+              responses={404: {"model": ErrorRespuesta, "description": "Tarea no encontrada"},
+                         409: {"model": ErrorRespuesta, "description": "La tarea no espera aprobación"}})
+    async def aprobar_tarea(job_id: JobId, decision: DecisionHumana, request: Request) -> TareaEncolada:
         """Registra la decisión humana y encola la reanudación del grafo (aprobada o rechazada)."""
         r = _redis(request)
         if await jobs.solicitar_reanudacion(r, job_id, decision.aprobado, decision.comentario):
@@ -121,7 +142,9 @@ def crear_app() -> FastAPI:
             raise HTTPException(status_code=404, detail="Tarea no encontrada")
         raise HTTPException(status_code=409, detail=f"La tarea no espera aprobación (estado actual: {job['status']})")
 
-    @app.get("/tasks/{job_id}/events", response_class=EventSourceResponse)
+    @app.get("/tasks/{job_id}/events", response_class=EventSourceResponse, tags=["tareas"],
+             summary="Seguir el progreso en vivo (Server-Sent Events)",
+             responses={404: {"model": ErrorRespuesta, "description": "Tarea no encontrada"}})
     async def eventos_tarea(
         job_id: Annotated[str, Depends(_job_existente)],
         request: Request,
@@ -141,10 +164,10 @@ def crear_app() -> FastAPI:
                 if events.es_final(tipo, datos):
                     return
 
-    @app.get("/health")
-    async def salud(request: Request) -> dict[str, Literal["ok"]]:
+    @app.get("/health", response_model=Salud, tags=["sistema"], summary="Verificar que la API llega a Redis")
+    async def salud(request: Request) -> Salud:
         await _redis(request).ping()
-        return {"redis": "ok"}
+        return Salud(redis="ok")
 
     return app
 

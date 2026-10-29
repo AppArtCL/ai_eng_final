@@ -146,18 +146,54 @@ class AgenteFalso:
 ESTADO_GESTOR = {"instruccion": "Registrar mudanza sábado 10:00 depto 101", "messages": [], "contribuciones": []}
 
 
+def _registro(numero: int):
+    from datetime import datetime, timezone
+    from app.agents.schemas import SolicitudRegistrada
+    return SolicitudRegistrada(numero=numero, tipo="mudanza", detalle="sábado 10:00, depto 101",
+                               creado_en=datetime.now(timezone.utc), job_id="j1")
+
+
 async def test_gestor_recibe_la_accion_como_aprobada(monkeypatch):
     from langchain_core.messages import AIMessage, ToolMessage
     from app.agents import gestor_agent
-    falso = AgenteFalso([ToolMessage(content="Solicitud de mudanza registrada con el n.º 1", tool_call_id="1"),
-                         AIMessage(content="Listo, solicitud n.º 1")])
+    falso = AgenteFalso([ToolMessage(content="Solicitud de mudanza registrada con el n.º 7", tool_call_id="1",
+                                     name="registrar_solicitud", artifact=_registro(7)),
+                         AIMessage(content="Listo, solicitud n.º 7")])
     monkeypatch.setattr(gestor_agent, "agente_gestor", falso)
 
     salida = await gestor_agent.nodo_gestor(ESTADO_GESTOR)
 
     assert "APROBADA" in falso.recibido
     assert "Registrar mudanza sábado 10:00 depto 101" in falso.recibido
-    assert salida["contribuciones"][0]["aporte"] == "Listo, solicitud n.º 1"
+    assert salida["contribuciones"][0]["aporte"].startswith("Solicitud registrada: mudanza n.º 7")
+
+
+async def test_gestor_toma_el_numero_del_registro_y_no_del_llm(monkeypatch):
+    """Si el modelo dice un número distinto al que registró la herramienta, manda el registro."""
+    from langchain_core.messages import AIMessage, ToolMessage
+    from app.agents import gestor_agent
+    falso = AgenteFalso([ToolMessage(content="registrada con el n.º 3", tool_call_id="1",
+                                     name="registrar_solicitud", artifact=_registro(3)),
+                         AIMessage(content="Listo, solicitud n.º 99")])
+    monkeypatch.setattr(gestor_agent, "agente_gestor", falso)
+
+    aporte = (await gestor_agent.nodo_gestor(ESTADO_GESTOR))["contribuciones"][0]["aporte"]
+
+    assert aporte.startswith("Solicitud registrada: mudanza n.º 3")
+
+
+async def test_gestor_con_toolmessage_de_error_no_cuenta_como_registro(monkeypatch):
+    """Un ToolMessage de error (por ejemplo, Redis caído tras los reintentos) no tiene artefacto."""
+    from langchain_core.messages import AIMessage, ToolMessage
+    from app.agents import gestor_agent
+    falso = AgenteFalso([ToolMessage(content="Error: ConnectionError", tool_call_id="1",
+                                     name="registrar_solicitud", status="error"),
+                         AIMessage(content="Solicitud n.º 1 registrada")])
+    monkeypatch.setattr(gestor_agent, "agente_gestor", falso)
+
+    aporte = (await gestor_agent.nodo_gestor(ESTADO_GESTOR))["contribuciones"][0]["aporte"]
+
+    assert aporte.startswith("No se registró ninguna solicitud")
 
 
 async def test_gestor_sin_llamar_herramienta_lo_declara(monkeypatch):
@@ -176,3 +212,29 @@ def test_herramienta_sin_redis_configurado_falla_claro(monkeypatch):
     monkeypatch.setattr(tools, "_redis", None)
     with pytest.raises(RuntimeError, match="lifespan"):
         tools.get_redis()
+
+
+def test_gestor_reconoce_el_registro_restaurado_de_un_checkpoint_de_redis():
+    """Regresión (detectada con la pila real): tras retomar el subgrafo del gestor desde su checkpoint,
+    el artefacto llega como dict serializado de LangChain y antes se reportaba 'No se registró'."""
+    from langchain_core.messages import ToolMessage
+    from langgraph.checkpoint.redis.jsonplus_redis import JsonPlusRedisSerializer
+    from app.agents.gestor_agent import solicitudes_registradas
+
+    original = ToolMessage(content="registrada n.º 7", tool_call_id="1", name="registrar_solicitud",
+                           artifact=_registro(7))
+    serializador = JsonPlusRedisSerializer()
+    restaurado = serializador.loads_typed(serializador.dumps_typed({"m": [original]}))["m"][0]
+
+    assert isinstance(restaurado.artifact, dict)  # así llega tras el checkpoint
+    assert [s.numero for s in solicitudes_registradas([restaurado])] == [7]
+
+
+def test_artefacto_de_otra_herramienta_o_corrupto_no_cuenta():
+    from langchain_core.messages import ToolMessage
+    from app.agents.gestor_agent import solicitudes_registradas
+
+    otra = ToolMessage(content="x", tool_call_id="1", name="calculadora", artifact=_registro(1))
+    corrupto = ToolMessage(content="x", tool_call_id="2", name="registrar_solicitud", artifact={"numero": -1})
+
+    assert solicitudes_registradas([otra, corrupto]) == []

@@ -11,11 +11,14 @@ from app.graph.state import AgentState
 from app.agents.supervisor import nodo_supervisor
 from app.agents.supervisor import nodo_sintesis
 from app.agents.analyst_agent import nodo_analista
+from app.agents.base import POLITICA_REINTENTO_NODOS
 from app.agents.research_agent import nodo_investigador
 from app.agents.gestor_agent import nodo_gestor
 from app.graph.hitl import es_critica, nodo_aprobacion_humana
 
 logger = logging.getLogger(__name__)
+
+NODOS_SIN_REINTENTO = frozenset({"aprobacion_humana"})
 
 
 def enrutar(state: AgentState) -> Literal["investigador", "analista", "aprobacion_humana", "sintesis"]:
@@ -60,7 +63,11 @@ def construir_grafo(
     }
     grafo = StateGraph(AgentState)
     for nombre, funcion in implementaciones.items():
-        grafo.add_node(nombre, funcion)
+        # Los nodos que llaman al LLM o a servicios se reintentan ante errores transitorios. La
+        # aprobación humana no: solo llama a interrupt(). El gestor es seguro de reintentar porque
+        # registrar_solicitud es idempotente por (job, tipo).
+        politica = None if nombre in NODOS_SIN_REINTENTO else POLITICA_REINTENTO_NODOS
+        grafo.add_node(nombre, funcion, retry_policy=politica)
     grafo.add_edge(START, "supervisor")
     grafo.add_conditional_edges("supervisor", enrutar)
     grafo.add_edge("investigador", "supervisor")

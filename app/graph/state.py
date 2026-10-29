@@ -9,6 +9,7 @@ from typing import Annotated, List, Literal, Optional, TypedDict
 
 from langchain_core.messages import HumanMessage
 from langgraph.graph import MessagesState
+from pydantic import StringConstraints, TypeAdapter
 
 # Nombres de los nodos especialistas y decisiones posibles del supervisor.
 # Se definen una sola vez para reutilizarlos en el supervisor y en el grafo.
@@ -17,10 +18,27 @@ Decision = Literal["investigador", "analista", "gestor", "FINISH"]
 
 
 class Contribucion(TypedDict):
-    """Registro de lo que aportó un especialista en un paso."""
+    """Registro de lo que aportó un especialista en un paso.
+
+    Es TypedDict (no BaseModel) porque vive en el estado que LangGraph guarda en los checkpoints de
+    Redis: un dict se serializa sin acoplar los checkpoints a una clase de la app. El contrato se
+    hace cumplir al crearla, con nueva_contribucion(), que la valida con Pydantic.
+    """
     agente: Especialista
-    instruccion: str
-    aporte: str
+    instruccion: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+    aporte: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+
+
+_validar_contribucion = TypeAdapter(Contribucion)
+
+
+def nueva_contribucion(agente: Especialista, instruccion: str, aporte: str) -> Contribucion:
+    """Crea una contribución validada: agente conocido, instrucción y aporte no vacíos.
+
+    Un aporte vacío (el agente terminó sin decir nada) es un error real del especialista: es mejor
+    que falle aquí, con un mensaje claro, que pasarle al supervisor un aporte en blanco.
+    """
+    return _validar_contribucion.validate_python({"agente": agente, "instruccion": instruccion, "aporte": aporte})
 
 
 class AgentState(MessagesState):

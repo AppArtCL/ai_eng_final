@@ -16,9 +16,13 @@ async def cliente(r):
         yield c
 
 
+INEXISTENTE = "0" * 32  # formato válido de job_id, pero sin job en Redis
+APROBACION = {"accion": "Registrar mudanza", "razon": "paso 4", "pregunta": "Registra mi mudanza"}
+
+
 async def _job_esperando(r) -> str:
     job_id = await jobs.crear_job(r, "Registra mi mudanza")
-    await jobs.actualizar_job(r, job_id, status="WAITING_APPROVAL", aprobacion_pendiente={"accion": "mudanza"})
+    await jobs.actualizar_job(r, job_id, status="WAITING_APPROVAL", aprobacion_pendiente=APROBACION)
     return job_id
 
 
@@ -55,12 +59,12 @@ async def test_get_task_devuelve_estado(cliente, r):
     cuerpo = resp.json()
     assert cuerpo["job_id"] == job_id
     assert cuerpo["status"] == "WAITING_APPROVAL"
-    assert cuerpo["aprobacion_pendiente"] == {"accion": "mudanza"}
+    assert cuerpo["aprobacion_pendiente"] == APROBACION
     assert cuerpo["respuesta"] is None and cuerpo["error"] is None
 
 
 async def test_get_task_inexistente_404(cliente):
-    assert (await cliente.get("/tasks/no-existe")).status_code == 404
+    assert (await cliente.get(f"/tasks/{INEXISTENTE}")).status_code == 404
 
 
 # --- POST /tasks/{id}/approve ----------------------------------------------------------
@@ -96,7 +100,7 @@ async def test_approve_job_no_esperando_409(cliente, r):
 
 
 async def test_approve_inexistente_404(cliente):
-    resp = await cliente.post("/tasks/no-existe/approve", json={"aprobado": True})
+    resp = await cliente.post(f"/tasks/{INEXISTENTE}/approve", json={"aprobado": True})
     assert resp.status_code == 404
 
 
@@ -125,7 +129,7 @@ async def cliente_sin_redis():
 
 async def test_redis_caido_responde_503(cliente_sin_redis):
     assert (await cliente_sin_redis.post("/tasks", json={"pregunta": "hola"})).status_code == 503
-    assert (await cliente_sin_redis.get("/tasks/abc")).status_code == 503
+    assert (await cliente_sin_redis.get(f"/tasks/{INEXISTENTE}")).status_code == 503
     assert (await cliente_sin_redis.get("/health")).status_code == 503
 
 
@@ -179,4 +183,21 @@ async def test_events_con_last_event_id_retoma_desde_ahi(cliente, r):
 
 
 async def test_events_de_job_inexistente_404(cliente):
-    assert (await cliente.get("/tasks/no-existe/events")).status_code == 404
+    assert (await cliente.get(f"/tasks/{INEXISTENTE}/events")).status_code == 404
+
+
+@pytest.mark.parametrize("job_id", ["no-existe", "ABC", "0" * 31, "z" * 32])
+async def test_job_id_con_formato_invalido_422_sin_consultar_redis(cliente, job_id):
+    for metodo, ruta in (("get", f"/tasks/{job_id}"), ("get", f"/tasks/{job_id}/events")):
+        assert (await getattr(cliente, metodo)(ruta)).status_code == 422
+    assert (await cliente.post(f"/tasks/{job_id}/approve", json={"aprobado": True})).status_code == 422
+
+
+def test_openapi_documenta_errores_y_modelos():
+    esquema = crear_app().openapi()
+    estado = esquema["paths"]["/tasks/{job_id}"]["get"]["responses"]
+    assert {"200", "404", "422", "503"} <= set(estado)
+    aprobar = esquema["paths"]["/tasks/{job_id}/approve"]["post"]["responses"]
+    assert "409" in aprobar
+    modelos = esquema["components"]["schemas"]
+    assert {"AprobacionPendiente", "Salud", "ErrorRespuesta"} <= set(modelos)

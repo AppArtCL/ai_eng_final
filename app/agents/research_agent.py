@@ -1,6 +1,6 @@
 from langchain_core.messages import AIMessage, HumanMessage
 
-from app.graph.state import AgentState
+from app.graph.state import AgentState, nueva_contribucion
 from app.agents.base import crear_agente
 from app.agents.tools import buscar_en_reglamento
 
@@ -16,11 +16,11 @@ agente_investigador = crear_agente([buscar_en_reglamento], PROMPT_INVESTIGADOR)
 
 async def nodo_investigador(state: AgentState) -> dict:
     """Ejecuta al investigador solo con la instrucción del supervisor (contexto acotado)."""
-    instruccion = state.get("instruccion") or state["messages"][0].content
+    instruccion = state.get("instruccion") or state["messages"][0].text
     resultado = await agente_investigador.ainvoke({"messages": [HumanMessage(content=instruccion)]})
-    respuesta = resultado["messages"][-1].content
+    respuesta = resultado["messages"][-1].text
     return {
         "messages": [AIMessage(content=respuesta, name="investigador")],
-        "contribuciones": [{"agente": "investigador", "instruccion": instruccion, "aporte": respuesta}],
+        "contribuciones": [nueva_contribucion("investigador", instruccion, respuesta)],
         "pasos": 1,
     }

@@ -1,6 +1,6 @@
 from langchain_core.messages import AIMessage, HumanMessage
 
-from app.graph.state import AgentState
+from app.graph.state import AgentState, nueva_contribucion
 from app.agents.base import crear_agente
 from app.agents.tools import calculadora
 
@@ -26,14 +26,14 @@ def _ultimo_aporte_investigador(state: AgentState) -> str:
 
 async def nodo_analista(state: AgentState) -> dict:
     """Ejecuta al analista con la instrucción del supervisor y solo los datos del investigador."""
-    instruccion = state.get("instruccion") or state["messages"][0].content
+    instruccion = state.get("instruccion") or state["messages"][0].text
     datos = _ultimo_aporte_investigador(state)
     mensaje = f"Tarea: {instruccion}\n\nDatos disponibles:\n{datos}"
 
     resultado = await agente_analista.ainvoke({"messages": [HumanMessage(content=mensaje)]})
-    respuesta = resultado["messages"][-1].content
+    respuesta = resultado["messages"][-1].text
     return {
         "messages": [AIMessage(content=respuesta, name="analista")],
-        "contribuciones": [{"agente": "analista", "instruccion": instruccion, "aporte": respuesta}],
+        "contribuciones": [nueva_contribucion("analista", instruccion, respuesta)],
         "pasos": 1,
     }
