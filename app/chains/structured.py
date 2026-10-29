@@ -7,7 +7,7 @@ Con include_raw=True el modelo no lanza excepción si su salida no calza con el 
 revisa esa salida y lanza RespuestaInvalida si no sirve; with_retry vuelve a llamar al LLM.
 """
 import logging
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.prompts import ChatPromptTemplate
@@ -66,10 +66,15 @@ def crear_cadena_estructurada(
     cliente de OpenAI (max_retries), y un error de autenticación no se arregla reintentando.
     """
     llm = llm or config.get_llm()
-    estructurado = llm.with_structured_output(esquema, include_raw=True)
+    # Con include_raw=True la salida es siempre el dict {"raw", "parsed", "parsing_error"}, pero
+    # LangChain la tipa como `dict | BaseModel` (una sola firma para ambos modos).
+    estructurado = cast(Runnable[Any, dict[str, Any]], llm.with_structured_output(esquema, include_raw=True))
     cadena = prompt | estructurado | RunnableLambda(validar_respuesta_completa)
-    return cadena.with_retry(
+    con_reintentos = cadena.with_retry(
         retry_if_exception_type=(RespuestaInvalida,),
         stop_after_attempt=INTENTOS,
         wait_exponential_jitter=True,
     )
+    # validar_respuesta_completa devuelve el objeto que parseó with_structured_output(esquema),
+    # o sea, una instancia de M; el verificador de tipos no puede inferirlo a través del dict.
+    return cast(Runnable[dict, M], con_reintentos)

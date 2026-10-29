@@ -2,9 +2,11 @@ import logging
 import re
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 
 from app import config
+from app.chains.structured import crear_cadena_estructurada
 from app.graph.state import AgentState, Decision
 
 logger = logging.getLogger(__name__)
@@ -44,7 +46,14 @@ class DecisionSupervisor(BaseModel):
     razon: str = Field(description="Justificación breve de la decisión, citando el criterio de la rúbrica aplicado")
 
 
-llm_supervisor = config.get_llm().with_structured_output(DecisionSupervisor)
+# El prompt de sistema es fijo; todo lo que viene del usuario o de los agentes entra por la
+# variable {contexto}. Así, unas llaves en la pregunta del vecino nunca se interpretan como plantilla.
+PROMPT_DECISION = ChatPromptTemplate.from_messages([
+    ("system", PROMPT_SUPERVISOR),
+    ("human", "{contexto}"),
+])
+
+cadena_supervisor = crear_cadena_estructurada(PROMPT_DECISION, DecisionSupervisor)
 
 
 def _formatear_aportes(state: AgentState) -> str:
@@ -76,11 +85,7 @@ def nodo_supervisor(state: AgentState) -> dict:
         f"Aportes hasta ahora (paso {pasos} de {config.settings.max_pasos}):\n"
         f"{_formatear_aportes(state)}"
     )
-    respuesta = llm_supervisor.invoke([
-        SystemMessage(content=PROMPT_SUPERVISOR),
-        HumanMessage(content=contexto),
-    ])
-    decision = DecisionSupervisor.model_validate(respuesta)
+    decision = cadena_supervisor.invoke({"contexto": contexto})
 
     return {
         "next_agent": decision.next,
