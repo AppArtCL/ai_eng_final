@@ -4,7 +4,7 @@ from langchain.agents import create_agent
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from app import config
-from app.state import AgentState
+from app.graph.state import AgentState
 from app.agents.tools import registrar_solicitud
 
 logger = logging.getLogger(__name__)

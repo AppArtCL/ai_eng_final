@@ -39,4 +39,4 @@ def cerrar_trazas(proveedor: TracerProvider | None) -> None:
 
 
 def obtener_tracer() -> trace.Tracer:
-    return trace.get_tracer("app.worker")
+    return trace.get_tracer("app.queue.worker")

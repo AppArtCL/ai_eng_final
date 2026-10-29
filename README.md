@@ -55,12 +55,13 @@ cliente ──POST /tasks──▶ FastAPI ──HSET job:{id} + LPUSH cola:tare
 
 | Pieza | Archivo | Qué hace |
 |---|---|---|
-| API | [`app/main.py`](app/main.py) | Endpoints async. Nunca ejecuta el grafo: solo lee y escribe en Redis. El `lifespan` abre Redis, compila el grafo y lanza los workers |
-| Jobs y cola | [`app/jobs.py`](app/jobs.py) | Hash `job:{id}` con estado, pregunta, respuesta y error; cola confiable `cola:tareas` → `cola:procesando` (FIFO) con recuperación de huérfanos al arrancar |
-| Worker | [`app/worker.py`](app/worker.py) | 5 coroutines que consumen la cola, ejecutan o retoman el grafo y dejan el estado final. **Cualquier excepción deja el job en `FAILED`** |
-| Grafo | [`app/graph.py`](app/graph.py) | El orquestador del M6 + gestor + aprobación, compilado con `AsyncRedisSaver` |
-| HITL | [`app/hitl.py`](app/hitl.py) | Qué es crítico (`es_critica`) y el nodo que pausa con `interrupt()` |
-| Observabilidad | [`app/observability.py`](app/observability.py) | Registro de Phoenix e instrumentación de LangChain/LangGraph |
+| API | [`app/api/main.py`](app/api/main.py) | Endpoints async. Nunca ejecuta el grafo: solo lee y escribe en Redis. El `lifespan` abre Redis, compila el grafo y lanza los workers |
+| Contratos de la API | [`app/api/schemas.py`](app/api/schemas.py) | Modelos Pydantic de entrada y salida de cada endpoint |
+| Jobs y cola | [`app/queue/jobs.py`](app/queue/jobs.py) | Hash `job:{id}` con estado, pregunta, respuesta y error; cola confiable `cola:tareas` → `cola:procesando` (FIFO) con recuperación de huérfanos al arrancar |
+| Worker | [`app/queue/worker.py`](app/queue/worker.py) | 5 coroutines que consumen la cola, ejecutan o retoman el grafo y dejan el estado final. **Cualquier excepción deja el job en `FAILED`** |
+| Grafo | [`app/graph/builder.py`](app/graph/builder.py) | El orquestador del M6 + gestor + aprobación, compilado con `AsyncRedisSaver` |
+| HITL | [`app/graph/hitl.py`](app/graph/hitl.py) | Qué es crítico (`es_critica`) y el nodo que pausa con `interrupt()` |
+| Observabilidad | [`app/observability/tracing.py`](app/observability/tracing.py) | Registro de Phoenix e instrumentación de LangChain/LangGraph |
 | Agentes | [`app/agents/`](app/agents/) | Supervisor, investigador, analista y síntesis del M6, más el gestor |
 | RAG | [`app/rag/`](app/rag/) | RAG híbrido BM25 + Pinecone de la Pre-entrega 4 |
 
@@ -103,7 +104,7 @@ Levanta tres servicios:
 ```bash
 docker compose up -d redis phoenix
 uv sync
-uv run uvicorn app.main:app --port 8000
+uv run uvicorn app.api.main:app --port 8000
 ```
 
 ### Si el índice de Pinecone está vacío
@@ -193,8 +194,8 @@ Un job puede estar en tres situaciones cuando la API se detiene. Las tres sobrev
 
 El tercer caso es el que no funcionaba en la Pre-entrega 7: `BRPOP` sacaba el mensaje de la cola antes de procesarlo, y si la API moría a mitad del job, el mensaje desaparecía y el job quedaba en `RUNNING` para siempre. La solución tiene dos partes:
 
-1. **Cola confiable** ([`app/jobs.py`](app/jobs.py)). El worker no saca el mensaje: lo *mueve* de forma atómica con `BLMOVE` a `cola:procesando`, y lo borra de ahí (`LREM`) recién cuando el job queda en `DONE`, `FAILED` o `WAITING_APPROVAL`. Si el worker se cancela a mitad, el mensaje no se confirma.
-2. **Retomar desde el checkpoint** ([`elegir_entrada()`](app/worker.py)). Antes de invocar el grafo, el worker lee el checkpoint del hilo. Si quedan nodos pendientes (`snapshot.next`), invoca con `None`, que en LangGraph significa "continúa desde el último checkpoint". Así no repite los nodos que ya terminaron ni duplica la pregunta en `messages`.
+1. **Cola confiable** ([`app/queue/jobs.py`](app/queue/jobs.py)). El worker no saca el mensaje: lo *mueve* de forma atómica con `BLMOVE` a `cola:procesando`, y lo borra de ahí (`LREM`) recién cuando el job queda en `DONE`, `FAILED` o `WAITING_APPROVAL`. Si el worker se cancela a mitad, el mensaje no se confirma.
+2. **Retomar desde el checkpoint** ([`elegir_entrada()`](app/queue/worker.py)). Antes de invocar el grafo, el worker lee el checkpoint del hilo. Si quedan nodos pendientes (`snapshot.next`), invoca con `None`, que en LangGraph significa "continúa desde el último checkpoint". Así no repite los nodos que ya terminaron ni duplica la pregunta en `messages`.
 
 Lo cubren tests automáticos: [`test_apagado_a_mitad_de_job_deja_el_mensaje_para_recuperarlo`](tests/test_worker.py) y [`test_job_interrumpido_retoma_desde_checkpoints_en_redis`](tests/test_worker.py). Este último usa Redis real y cierra el `AsyncRedisSaver` entre la "muerte" y el "arranque", para que el estado solo pueda venir de Redis.
 
@@ -238,7 +239,7 @@ Para el doble clic en "aprobar", `solicitar_reanudacion()` usa `WATCH`/`MULTI`. 
 
 ## Observabilidad con Phoenix
 
-[`app/observability.py`](app/observability.py) registra Phoenix con `phoenix.otel.register` e instrumenta LangChain con `LangChainInstrumentor` de OpenInference. En cada traza aparecen:
+[`app/observability/tracing.py`](app/observability/tracing.py) registra Phoenix con `phoenix.otel.register` e instrumenta LangChain con `LangChainInstrumentor` de OpenInference. En cada traza aparecen:
 
 - un span raíz `job` por ejecución, con la pregunta como entrada, la respuesta como salida y el estado final;
 - un span por nodo del grafo (supervisor, investigador, analista, síntesis, gestor);

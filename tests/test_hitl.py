@@ -6,9 +6,9 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command
 
 from app.agents import tools
-from app.graph import construir_grafo
-from app.hitl import es_critica
-from app.state import estado_inicial
+from app.graph.builder import construir_grafo
+from app.graph.hitl import es_critica
+from app.graph.state import estado_inicial
 
 PREGUNTA = "Registra una solicitud de mudanza para el sábado a las 10:00, depto 101"
 

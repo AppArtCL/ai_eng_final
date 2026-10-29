@@ -7,13 +7,13 @@ from typing import AsyncIterator, Callable, Literal
 import logging
 
 from app import config
-from app.state import AgentState
+from app.graph.state import AgentState
 from app.agents.supervisor import nodo_supervisor
 from app.agents.supervisor import nodo_sintesis
 from app.agents.analyst_agent import nodo_analista
 from app.agents.research_agent import nodo_investigador
 from app.agents.gestor_agent import nodo_gestor
-from app.hitl import es_critica, nodo_aprobacion_humana
+from app.graph.hitl import es_critica, nodo_aprobacion_humana
 
 logger = logging.getLogger(__name__)
 

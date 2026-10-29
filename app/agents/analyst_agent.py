@@ -2,7 +2,7 @@ from langchain.agents import create_agent
 from langchain_core.messages import AIMessage, HumanMessage
 
 from app import config
-from app.state import AgentState
+from app.graph.state import AgentState
 from app.agents.tools import calculadora
 
 PROMPT_ANALISTA = """Eres el agente analista del Reglamento de Copropiedad del Edificio Riesco 6540, encargado de hacer todos los cálculos que se requieran.

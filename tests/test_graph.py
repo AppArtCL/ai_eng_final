@@ -3,8 +3,8 @@ from langchain_core.messages import AIMessage
 from langgraph.checkpoint.memory import InMemorySaver
 
 from app import config
-from app.graph import checkpointer_redis, construir_grafo
-from app.state import estado_inicial
+from app.graph.builder import checkpointer_redis, construir_grafo
+from app.graph.state import estado_inicial
 
 
 def supervisor_que_termina(state):

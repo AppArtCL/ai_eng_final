@@ -7,7 +7,9 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode
 
-from app import config, jobs, observability, worker
+from app import config
+from app.observability import tracing
+from app.queue import jobs, worker
 from tests.test_worker import GrafoFalso
 
 
@@ -55,4 +57,4 @@ async def test_span_de_job_fallido_queda_en_error(r, spans):
 
 def test_sin_endpoint_no_configura_trazas(monkeypatch):
     monkeypatch.setattr(config.settings, "phoenix_collector_endpoint", "")
-    assert observability.configurar_trazas() is None
+    assert tracing.configurar_trazas() is None

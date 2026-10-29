@@ -7,8 +7,8 @@ from langchain_core.messages import AIMessage
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command
 
-from app import jobs, worker
-from app.graph import checkpointer_redis, construir_grafo
+from app.queue import jobs, worker
+from app.graph.builder import checkpointer_redis, construir_grafo
 
 
 HILO_VACIO = SimpleNamespace(interrupts=[], next=(), values={})

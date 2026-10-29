@@ -4,8 +4,8 @@ import fakeredis
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app import jobs
-from app.main import crear_app
+from app.queue import jobs
+from app.api.main import crear_app
 
 
 @pytest.fixture

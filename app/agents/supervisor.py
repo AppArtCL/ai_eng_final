@@ -5,7 +5,7 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
 from app import config
-from app.state import AgentState, Decision
+from app.graph.state import AgentState, Decision
 
 logger = logging.getLogger(__name__)
 

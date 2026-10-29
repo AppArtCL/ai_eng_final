@@ -4,7 +4,7 @@ Los endpoints nunca ejecutan el grafo: solo leen y escriben en Redis (redis.asyn
 de inmediato. El trabajo pesado lo hacen los workers que el lifespan lanza en el mismo event loop.
 
 Uso:
-    uv run uvicorn app.main:app
+    uv run uvicorn app.api.main:app
 """
 import asyncio
 import logging
@@ -13,41 +13,17 @@ from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
 from redis.asyncio import Redis
 from redis.exceptions import ConnectionError as RedisConnectionError
 
-from app import config, jobs
-from app.graph import checkpointer_redis, construir_grafo
-from app.observability import cerrar_trazas, configurar_trazas
-from app.worker import bucle_worker
+from app import config
+from app.api.schemas import DecisionHumana, EstadoTarea, NuevaTarea, TareaEncolada
+from app.graph.builder import checkpointer_redis, construir_grafo
+from app.observability.tracing import cerrar_trazas, configurar_trazas
+from app.queue import jobs
+from app.queue.worker import bucle_worker
 
 logger = logging.getLogger(__name__)
-
-
-class NuevaTarea(BaseModel):
-    pregunta: str = Field(min_length=1, max_length=2000, description="Pregunta o solicitud del vecino")
-
-
-class TareaEncolada(BaseModel):
-    job_id: str
-    status: jobs.Estado
-
-
-class EstadoTarea(BaseModel):
-    job_id: str
-    status: jobs.Estado
-    pregunta: str
-    respuesta: str | None
-    error: str | None
-    aprobacion_pendiente: dict | None = Field(description="Acción que espera aprobación (solo en WAITING_APPROVAL)")
-    created_at: str
-    updated_at: str
-
-
-class DecisionHumana(BaseModel):
-    aprobado: bool
-    comentario: str = Field(default="", max_length=500)
 
 
 def configurar_logging() -> None:

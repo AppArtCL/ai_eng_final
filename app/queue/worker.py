@@ -16,9 +16,9 @@ from opentelemetry.trace import Status, StatusCode
 from redis.asyncio import Redis
 from redis.exceptions import ConnectionError as RedisConnectionError
 
-from app import jobs
-from app.observability import obtener_tracer
-from app.state import estado_inicial
+from app.queue import jobs
+from app.observability.tracing import obtener_tracer
+from app.graph.state import estado_inicial
 
 logger = logging.getLogger(__name__)
 tracer = obtener_tracer()

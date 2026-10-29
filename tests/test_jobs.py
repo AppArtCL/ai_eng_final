@@ -1,7 +1,7 @@
 import json
 
 
-from app import jobs
+from app.queue import jobs
 
 
 async def _mensajes_en_cola(r) -> list[dict]:

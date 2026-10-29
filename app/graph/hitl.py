@@ -8,7 +8,7 @@ from typing import Literal
 
 from langgraph.types import Command, interrupt
 
-from app.state import AgentState
+from app.graph.state import AgentState
 
 logger = logging.getLogger(__name__)
 
