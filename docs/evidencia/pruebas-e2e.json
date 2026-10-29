@@ -1,0 +1,375 @@
+[
+  {
+    "escenario": "consulta-normativa",
+    "job_id": "4e25d3269d224b8c927a24390e0d9768",
+    "status": "DONE",
+    "respuesta": "Según el Reglamento de Copropiedad del Edificio Riesco 6540 (archivo asados.txt, sección \"Regulación Exhaustiva sobre Asados y Tipo de Parrillas\", Artículo Octavo, letra x):\n\n- Está prohibido instalar o usar parrillas a carbón en departamentos estándar (pisos 2° a 15°) y en áreas comunes.\n- Los departamentos del primer piso con jardines exclusivos (101 y 104) pueden usar solo parrillas a gas; no se permiten parrillas a carbón ni leña.\n- Los departamentos con terrazas o cubiertas exclusivas en pisos superiores (1502, 1503, 1601 y 1604) pueden usar parrillas a carbón en sus áreas asignadas.\n\nPor lo tanto, si tu terraza está en un departamento estándar, no puedes hacer asados con parrilla a carbón; solo se permiten parrillas a gas en ciertos casos específicos. No se alcanzó a calcular si hay otras condiciones adicionales.",
+    "nodos": [
+      "supervisor",
+      "investigador",
+      "supervisor",
+      "sintesis"
+    ],
+    "tokens_streaming": 391,
+    "reconexiones_sse": 1,
+    "duracion_s": 12.475650874999701,
+    "verificaciones": {
+      "terminó en DONE": true,
+      "recibió tokens por SSE": true,
+      "pasó por supervisor": true,
+      "pasó por investigador": true,
+      "pasó por sintesis": true,
+      "no pasó por gestor": true,
+      "Phoenix registró sus 1 traza(s)": true
+    },
+    "trazas": [
+      {
+        "trace_id": "12ec4dd6cf06b67d9d0524c2de80b2bf",
+        "tipo": "start",
+        "retomado": false,
+        "latencia_s": 12.47,
+        "tokens": 6200,
+        "costo_usd": 0.0027559999999999998,
+        "nodos": {
+          "sintesis": {
+            "ejecuciones": 1,
+            "latencia_ms": 4340.213,
+            "tokens": 1604,
+            "costo_usd": 0.0011096
+          },
+          "supervisor": {
+            "ejecuciones": 2,
+            "latencia_ms": 2658.584,
+            "tokens": 2064,
+            "costo_usd": 0.0009767999999999999
+          },
+          "investigador": {
+            "ejecuciones": 1,
+            "latencia_ms": 5446.239,
+            "tokens": 2532,
+            "costo_usd": 0.0006696
+          }
+        }
+      }
+    ],
+    "capturas": [
+      "01-consulta-normativa.png"
+    ],
+    "ok": true
+  },
+  {
+    "escenario": "calculo-multipaso",
+    "job_id": "8d34e8be363b43f0908beed3a0b5e502",
+    "status": "DONE",
+    "respuesta": "La multa total a pagar por hacer ruidos molestos después de las 22:00 horas en tres ocasiones distintas en un mes es de 10 Unidades Tributarias Mensuales (UTM). Esto se calcula sumando: una multa inicial de 2 UTM por la primera ocasión, y multas duplicadas de 4 UTM por cada reincidencia dentro de seis meses, según lo indicado en el reglamento.\n\nFuente: convivencia_privada.txt, sección Procedimiento Sancionatorio y Régimen de Multas.",
+    "nodos": [
+      "supervisor",
+      "investigador",
+      "supervisor",
+      "analista",
+      "supervisor",
+      "sintesis"
+    ],
+    "tokens_streaming": 255,
+    "reconexiones_sse": 0,
+    "duracion_s": 14.773451749999367,
+    "verificaciones": {
+      "terminó en DONE": true,
+      "recibió tokens por SSE": true,
+      "pasó por investigador": true,
+      "pasó por analista": true,
+      "pasó por sintesis": true,
+      "Phoenix registró sus 1 traza(s)": true
+    },
+    "trazas": [
+      {
+        "trace_id": "f31a4a29ff6096a42403c54a0aacb1cd",
+        "tipo": "start",
+        "retomado": false,
+        "latencia_s": 14.77,
+        "tokens": 9497,
+        "costo_usd": 0.0043136,
+        "nodos": {
+          "sintesis": {
+            "ejecuciones": 1,
+            "latencia_ms": 3348.22,
+            "tokens": 1913,
+            "costo_usd": 0.00107
+          },
+          "supervisor": {
+            "ejecuciones": 3,
+            "latencia_ms": 3889.7130000000006,
+            "tokens": 3556,
+            "costo_usd": 0.0017427999999999999
+          },
+          "analista": {
+            "ejecuciones": 1,
+            "latencia_ms": 2716.466,
+            "tokens": 1376,
+            "costo_usd": 0.0007975999999999999
+          },
+          "investigador": {
+            "ejecuciones": 1,
+            "latencia_ms": 4783.397,
+            "tokens": 2652,
+            "costo_usd": 0.0007032
+          }
+        }
+      }
+    ],
+    "capturas": [
+      "02-calculo-multipaso.png"
+    ],
+    "ok": true
+  },
+  {
+    "escenario": "hitl-aprobado",
+    "job_id": "907955e339154497b6e5c5246bea600a",
+    "status": "DONE",
+    "respuesta": "Según el reglamento del edificio Riesco 6540 (archivo obras_mudanzas.txt, sección \"Protocolo de Mudanzas y Carga en Ascensores\"), las mudanzas los sábados están permitidas entre las 09:00 y las 14:00 horas. Por lo tanto, su mudanza para el sábado 10 de enero a las 10:00 cumple con el horario permitido. Además, es necesario obtener autorización previa de la administración para el uso de ascensores, incluyendo la colocación de fundas de protección y habilitación del elevador correspondiente.\n\nSu solicitud de mudanza para el sábado 10 de enero a las 10:00 en el departamento 1203 ha sido registrada con el número 11, confirmando que cumple con el horario permitido y que se requiere la autorización para el uso de ascensores según el reglamento.",
+    "nodos": [
+      "supervisor",
+      "investigador",
+      "supervisor",
+      "aprobacion_humana",
+      "gestor",
+      "supervisor",
+      "sintesis"
+    ],
+    "tokens_streaming": 179,
+    "reconexiones_sse": 0,
+    "duracion_s": 12.330540415998257,
+    "verificaciones": {
+      "terminó en DONE": true,
+      "recibió tokens por SSE": true,
+      "pasó por aprobacion_humana": true,
+      "pasó por gestor": true,
+      "pasó por sintesis": true,
+      "Phoenix registró sus 2 traza(s)": true
+    },
+    "trazas": [
+      {
+        "trace_id": "c2b11d80bcf3bd01f0df8f7280d948e4",
+        "tipo": "start",
+        "retomado": false,
+        "latencia_s": 7.18,
+        "tokens": 4482,
+        "costo_usd": 0.002232,
+        "nodos": {
+          "aprobacion_humana": {
+            "ejecuciones": 1,
+            "latencia_ms": 1.688,
+            "tokens": 0,
+            "costo_usd": 0.0
+          },
+          "supervisor": {
+            "ejecuciones": 2,
+            "latencia_ms": 3166.6059999999998,
+            "tokens": 2115,
+            "costo_usd": 0.0010812
+          },
+          "investigador": {
+            "ejecuciones": 1,
+            "latencia_ms": 3990.345,
+            "tokens": 2367,
+            "costo_usd": 0.0011508
+          }
+        }
+      },
+      {
+        "trace_id": "5c22841420ba7ce37628f9ff9ab3b05c",
+        "tipo": "resume",
+        "retomado": false,
+        "latencia_s": 5.14,
+        "tokens": 2972,
+        "costo_usd": 0.0015692,
+        "nodos": {
+          "sintesis": {
+            "ejecuciones": 1,
+            "latencia_ms": 1900.825,
+            "tokens": 768,
+            "costo_usd": 0.0005208
+          },
+          "supervisor": {
+            "ejecuciones": 1,
+            "latencia_ms": 1260.441,
+            "tokens": 1250,
+            "costo_usd": 0.0005756
+          },
+          "gestor": {
+            "ejecuciones": 1,
+            "latencia_ms": 1956.941,
+            "tokens": 954,
+            "costo_usd": 0.0004728
+          },
+          "aprobacion_humana": {
+            "ejecuciones": 1,
+            "latencia_ms": 0.4,
+            "tokens": 0,
+            "costo_usd": 0.0
+          }
+        }
+      }
+    ],
+    "capturas": [
+      "03-hitl-aprobado-1.png",
+      "03-hitl-aprobado-2.png"
+    ],
+    "ok": true
+  },
+  {
+    "escenario": "hitl-rechazado",
+    "job_id": "5ae7038d3f7e4f2b8e88ed4c172314b5",
+    "status": "DONE",
+    "respuesta": "Según el reglamento del Edificio Riesco 6540 (archivo obras_mudanzas.txt, sección \"Protocolo de Mudanzas y Carga en Ascensores\"), las mudanzas están permitidas los sábados entre 09:00 y 14:00 horas, con autorización previa de la administración para usar los ascensores con fundas de protección. Sin embargo, su solicitud para registrar una mudanza el sábado 17 de enero a las 09:30 en el departamento 502 fue rechazada porque ese día hay mantención de ascensores, por lo que no es posible autorizar la mudanza.",
+    "nodos": [
+      "supervisor",
+      "investigador",
+      "supervisor",
+      "aprobacion_humana",
+      "supervisor",
+      "sintesis"
+    ],
+    "tokens_streaming": 129,
+    "reconexiones_sse": 0,
+    "duracion_s": 8.838951999998244,
+    "verificaciones": {
+      "terminó en DONE": true,
+      "recibió tokens por SSE": true,
+      "pasó por aprobacion_humana": true,
+      "pasó por sintesis": true,
+      "no pasó por gestor": true,
+      "Phoenix registró sus 2 traza(s)": true
+    },
+    "trazas": [
+      {
+        "trace_id": "d99e42c3f8c9dac26d9c96067388b241",
+        "tipo": "start",
+        "retomado": false,
+        "latencia_s": 6.32,
+        "tokens": 4449,
+        "costo_usd": 0.0016752,
+        "nodos": {
+          "aprobacion_humana": {
+            "ejecuciones": 1,
+            "latencia_ms": 0.904,
+            "tokens": 0,
+            "costo_usd": 0.0
+          },
+          "supervisor": {
+            "ejecuciones": 2,
+            "latencia_ms": 2733.581,
+            "tokens": 2101,
+            "costo_usd": 0.0010672
+          },
+          "investigador": {
+            "ejecuciones": 1,
+            "latencia_ms": 3567.13,
+            "tokens": 2348,
+            "costo_usd": 0.000608
+          }
+        }
+      },
+      {
+        "trace_id": "ebc1d243ed0f6c94e0c8d92acca7f65b",
+        "tipo": "resume",
+        "retomado": false,
+        "latencia_s": 2.51,
+        "tokens": 1855,
+        "costo_usd": 0.0009507999999999999,
+        "nodos": {
+          "sintesis": {
+            "ejecuciones": 1,
+            "latencia_ms": 1497.602,
+            "tokens": 670,
+            "costo_usd": 0.00042159999999999995
+          },
+          "supervisor": {
+            "ejecuciones": 1,
+            "latencia_ms": 993.023,
+            "tokens": 1185,
+            "costo_usd": 0.0005292
+          },
+          "aprobacion_humana": {
+            "ejecuciones": 1,
+            "latencia_ms": 0.366,
+            "tokens": 0,
+            "costo_usd": 0.0
+          }
+        }
+      }
+    ],
+    "capturas": [
+      "04-hitl-rechazado-1.png",
+      "04-hitl-rechazado-2.png"
+    ],
+    "ok": true
+  },
+  {
+    "escenario": "reinicio-a-mitad",
+    "job_id": "b0ee8e02059f4f81820ae25851dd5931",
+    "status": "DONE",
+    "respuesta": "El total de horas permitidas para realizar mudanzas en el edificio durante la semana es de 57.5 horas. Esto se calcula sumando:\n\n- De lunes a viernes: 10.5 horas diarias (de 07:00 a 17:30 horas).\n- Sábado: 5 horas (de 09:00 a 14:00 horas).\n- Domingos y festivos: mudanzas prohibidas.\n\nFuente: archivo obras_mudanzas.txt, sección Protocolo de Mudanzas y Carga en Ascensores.",
+    "nodos": [
+      "supervisor",
+      "supervisor",
+      "investigador",
+      "supervisor",
+      "analista",
+      "supervisor",
+      "sintesis"
+    ],
+    "tokens_streaming": 113,
+    "reconexiones_sse": 1,
+    "duracion_s": 15.269994333000795,
+    "verificaciones": {
+      "terminó en DONE": true,
+      "recibió tokens por SSE": true,
+      "pasó por investigador": true,
+      "pasó por sintesis": true,
+      "el stream se cortó y se reanudó con Last-Event-ID": true,
+      "Phoenix registró sus 1 traza(s)": true,
+      "la traza quedó marcada job.retomado": true
+    },
+    "trazas": [
+      {
+        "trace_id": "8ea19ca0413d3651a6cee31ebcb14e64",
+        "tipo": "start",
+        "retomado": true,
+        "latencia_s": 11.67,
+        "tokens": 7221,
+        "costo_usd": 0.0036095999999999997,
+        "nodos": {
+          "sintesis": {
+            "ejecuciones": 1,
+            "latencia_ms": 1427.215,
+            "tokens": 702,
+            "costo_usd": 0.0004152
+          },
+          "supervisor": {
+            "ejecuciones": 2,
+            "latencia_ms": 2990.657,
+            "tokens": 2380,
+            "costo_usd": 0.001174
+          },
+          "analista": {
+            "ejecuciones": 1,
+            "latencia_ms": 3095.963,
+            "tokens": 1773,
+            "costo_usd": 0.0009288
+          },
+          "investigador": {
+            "ejecuciones": 1,
+            "latencia_ms": 4124.589,
+            "tokens": 2366,
+            "costo_usd": 0.0010915999999999999
+          }
+        }
+      }
+    ],
+    "capturas": [
+      "05-reinicio-a-mitad.png"
+    ],
+    "ok": true
+  }
+]

@@ -90,3 +90,33 @@ async def test_sesion_de_pinecone_se_abre_una_vez_y_se_cierra_al_final(monkeypat
 
     await rag.acerrar()
     assert espia.llamadas == ["abrir", "cerrar"]
+
+
+# --- Métricas de la evaluación (app/rag/evaluate.py) ---------------------------------
+
+def test_posicion_de_la_seccion_esperada():
+    from app.rag.evaluate import posicion_de
+    assert posicion_de(["A", "B", "B"], "B") == 2
+    assert posicion_de(["A", "C"], "B") is None
+
+
+def test_metricas_de_orden():
+    from app.rag.evaluate import Resultado, metricas
+    resultados = [Resultado(1, "t", "p", "B", posicion, []) for posicion in (1, 2, None, 4)]
+
+    m = metricas(resultados)
+
+    assert m["acierto@1"] == 0.25
+    assert m["recall@k"] == 0.75
+    assert m["mrr"] == (1 + 1 / 2 + 0 + 1 / 4) / 4
+
+
+def test_golden_set_apunta_a_secciones_que_existen():
+    """Si alguien renombra una sección del reglamento, el golden set no puede quedar apuntando al vacío."""
+    import json
+    from app.rag.evaluate import GOLDEN_SET
+    from app.rag.ingest import cargar_chunks
+    secciones = {c.metadata["seccion"] for c in cargar_chunks()}
+    casos = json.loads(GOLDEN_SET.read_text(encoding="utf-8"))
+    assert len(casos) >= 15
+    assert {c["seccion_esperada"] for c in casos} <= secciones

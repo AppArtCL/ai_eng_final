@@ -1,0 +1,20 @@
+[
+  {"id": 1, "tipo": "lexica", "origen": "M4", "pregunta": "¿A cuántos centímetros del suelo debo guardar las cosas en la bodega?", "seccion_esperada": "Destino Exclusivo Habitacional y Prohibición Comercial"},
+  {"id": 2, "tipo": "semantica", "origen": "M4", "pregunta": "Si me atraso en pagar los gastos comunes, ¿me pueden cortar la luz?", "seccion_esperada": "Gastos Comunes, Prorrateo Centralizado y Corte de Suministro"},
+  {"id": 3, "tipo": "semantica", "origen": "M4", "pregunta": "¿Puedo llevar amigos que no viven en el edificio a la piscina?", "seccion_esperada": "Régimen Integral de la Piscina del Condominio"},
+  {"id": 4, "tipo": "lexica", "origen": "M4", "pregunta": "¿Se pueden hacer mudanzas los domingos?", "seccion_esperada": "Protocolo de Mudanzas y Carga en Ascensores"},
+  {"id": 5, "tipo": "lexica", "origen": "M4", "pregunta": "¿Está permitido guardar materiales inflamables en la terraza?", "seccion_esperada": "Prevención de Incendios y Materiales Inflamables"},
+  {"id": 6, "tipo": "ambigua", "origen": "M4 (rag_system.py)", "pregunta": "¿Puedo hacer asados?", "seccion_esperada": "Regulación Exhaustiva sobre Asados y Tipo de Parrillas"},
+  {"id": 7, "tipo": "lexica", "origen": "nueva", "pregunta": "¿Puedo tener mascota en mi departamento?", "seccion_esperada": "Tenencia y Regulación de Animales Domésticos o Mascotas"},
+  {"id": 8, "tipo": "semantica", "origen": "nueva", "pregunta": "¿Cuánto me cobran si rompo una regla del edificio por segunda vez?", "seccion_esperada": "Procedimiento Sancionatorio y Régimen de Multas"},
+  {"id": 9, "tipo": "semantica", "origen": "nueva", "pregunta": "¿Puedo poner música fuerte a medianoche?", "seccion_esperada": "Normas de Convivencia, Emisiones de Humo y Ruido"},
+  {"id": 10, "tipo": "lexica", "origen": "nueva", "pregunta": "¿Para cuántas personas como máximo se puede reservar el salón multiuso?", "seccion_esperada": "Condiciones y Reglas de Utilización del Salón Común (Multiuso)"},
+  {"id": 11, "tipo": "semantica", "origen": "nueva", "pregunta": "¿Puedo dejar mi bicicleta en el pasillo frente a mi puerta?", "seccion_esperada": "Preservación del Libre Tránsito y Prohibición de Ocupación"},
+  {"id": 12, "tipo": "semantica", "origen": "nueva", "pregunta": "¿Puedo cambiar el piso de mi departamento por porcelanato?", "seccion_esperada": "Normas sobre Reformas Interiores y Prohibición de Modificar Pisos"},
+  {"id": 13, "tipo": "semantica", "origen": "nueva", "pregunta": "¿A qué hora pueden trabajar los maestros que remodelan el departamento de al lado?", "seccion_esperada": "Clasificación de Faenas y Horarios de Trabajo"},
+  {"id": 14, "tipo": "semantica", "origen": "nueva", "pregunta": "Mi hermano viene de visita en auto, ¿cuánto tiempo puede dejarlo estacionado?", "seccion_esperada": "Régimen de Estacionamientos de Visitas y Circulaciones Viales"},
+  {"id": 15, "tipo": "semantica", "origen": "nueva", "pregunta": "¿Puedo colgar la ropa a secar en el balcón?", "seccion_esperada": "Régimen de Terrazas, Balcones y Preservación de Fachadas"},
+  {"id": 16, "tipo": "semantica", "origen": "nueva", "pregunta": "¿El edificio tiene un lugar para atender una emergencia médica menor?", "seccion_esperada": "Equipamiento Comunitario Adicional del Primer Piso"},
+  {"id": 17, "tipo": "lexica", "origen": "nueva", "pregunta": "¿Quién mantiene los jardines de los departamentos 101 y 104?", "seccion_esperada": "Polígonos de Uso y Goce Exclusivo en Cubiertas y Jardines"},
+  {"id": 18, "tipo": "semantica", "origen": "nueva", "pregunta": "¿Puedo atender clientes de mi peluquería en mi departamento?", "seccion_esperada": "Destino Exclusivo Habitacional y Prohibición Comercial"}
+]
