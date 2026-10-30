@@ -79,12 +79,17 @@ def construir_grafo(
 
 
 def exportar_diagrama():
-    """Exporta el diagrama del grafo a un archivo visualizable."""
+    """Genera el diagrama del grafo DESDE EL CÓDIGO, para que la documentación no se desactualice.
+
+    Uso: uv run python -m app.graph.builder   →  docs/diagrama-grafo.md (Mermaid) y .png
+    """
+    destino = config.BASE_DIR / "docs"
+    destino.mkdir(exist_ok=True)
     dibujo = construir_grafo().get_graph()
-    with open(config.BASE_DIR / "diagrama.md", "w", encoding="utf-8") as archivo:
+    with open(destino / "diagrama-grafo.md", "w", encoding="utf-8") as archivo:
         archivo.write(f"```mermaid\n{dibujo.draw_mermaid()}```\n")
     try:
-        dibujo.draw_mermaid_png(output_file_path=str(config.BASE_DIR / "diagrama.png"))
+        dibujo.draw_mermaid_png(output_file_path=str(destino / "diagrama-grafo.png"))
     except Exception as e:
         logger.warning("No se pudo generar el PNG (requiere internet): %s", e)
 

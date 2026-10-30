@@ -1,3 +1,7 @@
+"""Lectura y fragmentación del reglamento (app/rag/data/*.txt) y subida a Pinecone.
+
+El punto de entrada es app/rag/preparar.py, que decide si hace falta subir.
+"""
 import os
 import logging
 from app import config
@@ -107,11 +111,3 @@ def subir_a_pinecone(chunks):
     n = esperar_conteo(vectorstore.index, esperado=len(chunks))
     
     logger.info(f"Vectores en el namespace {config.settings.pinecone_namespace}: {n}.")
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-    chunks = cargar_chunks()
-    logger.info(f"Total de chunks procesados: {len(chunks)}.")
-    logger.info("Metadata de ejemplo: %s", chunks[0].metadata if chunks else {})
-    subir_a_pinecone(chunks)

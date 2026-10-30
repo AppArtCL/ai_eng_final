@@ -1,3 +1,16 @@
+# Un solo comando: `docker compose up --build` (o ./run.sh, que además revisa el .env).
+# Orden de arranque: redis (healthy) + phoenix → ingest (prepara Pinecone y termina) → api (healthy).
+
+x-app: &app
+  # ingest y api usan la misma imagen: se construye una sola vez.
+  build: .
+  image: ai-eng-final:local
+  env_file: .env
+  environment:
+    # Dentro de la red de compose, los servicios se llaman por su nombre (no localhost).
+    REDIS_URL: redis://redis:6379/0
+    PHOENIX_COLLECTOR_ENDPOINT: http://phoenix:6006/v1/traces
+
 services:
   redis:
     # Redis 8 incluye RedisJSON y RediSearch, que necesita langgraph-checkpoint-redis.
@@ -22,20 +35,31 @@ services:
     volumes:
       - phoenix-data:/mnt/data
 
+  ingest:
+    # Paso único de preparación: crea el índice de Pinecone si falta y sube el reglamento si no
+    # está al día. Es idempotente: en los arranques siguientes verifica y termina en segundos.
+    <<: *app
+    command: ["uv", "run", "--no-sync", "python", "-m", "app.rag.preparar"]
+    restart: "no"
+
   api:
-    build: .
+    <<: *app
     ports:
       - "8000:8000"
-    env_file: .env
-    environment:
-      # Dentro de la red de compose, los servicios se llaman por su nombre (no localhost).
-      REDIS_URL: redis://redis:6379/0
-      PHOENIX_COLLECTOR_ENDPOINT: http://phoenix:6006/v1/traces
     depends_on:
       redis:
         condition: service_healthy
       phoenix:
         condition: service_started
+      ingest:
+        condition: service_completed_successfully  # si la ingesta falla, la API no arranca
+    healthcheck:
+      # La imagen slim no trae curl: se usa Python. /health verifica que la API llega a Redis.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
 
 volumes:
   redis-data:

@@ -4,7 +4,6 @@
 .remember/
 docs/
 tests/
-screenshots/
 scripts/
 **/__pycache__/
 .pytest_cache/
