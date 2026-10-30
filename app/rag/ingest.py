@@ -86,6 +86,7 @@ def cargar_chunks():
     return chunks
 
 # Espero hasta que el conteo sea exacto o se espere 30 segundos.
+# Síncrono a propósito: corre en el servicio `ingest`, un proceso aparte sin event loop.
 def esperar_conteo(index, esperado, timeout=30):
     inicio = time.time()
     n = 0

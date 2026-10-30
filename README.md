@@ -354,6 +354,9 @@ docs/                  ADRs, diagrama del grafo y evidencia (reportes y capturas
   definitiva es la del evento `DONE`.
 - **Spans perdidos con `SIGKILL`:** la traza de una ejecución que muere abruptamente no llega a
   Phoenix (se exporta por lotes); la ejecución retomada queda marcada `job.retomado`.
+- **`langchain-community` en retiro:** `BM25Retriever` todavía vive en ese paquete, que emite un
+  `DeprecationWarning` en los tests. Cuando exista un paquete independiente para BM25, se migra el
+  import de `app/rag/retrievers.py`.
 - **Cuota de Pinecone:** el re-ranking usa la cuota de inference del plan; si se agota, el sistema
   sigue con la búsqueda híbrida sin re-ranking.
 
@@ -365,7 +368,7 @@ El proyecto integra lo construido en los módulos del curso, refactorizado a asy
 
 | Módulo | Pieza en este repositorio |
 |---|---|
-| M1 · Cimientos asíncronos | Llamadas al LLM con `ainvoke`, streaming de tokens, timeouts |
+| M1 · Cimientos asíncronos | Cliente del LLM con timeout, reintentos y modelo de respaldo (`get_llm` en [`app/config.py`](app/config.py)); streaming de tokens con `astream` (`ejecutar_grafo` en [`app/queue/worker.py`](app/queue/worker.py)) |
 | M2 · Orquestación declarativa | Cadenas LCEL con contrato Pydantic, `include_raw` y `with_retry` ([`app/chains/`](app/chains/)) |
 | M3–M4 · RAG avanzado | Fragmentación por secciones, BM25 en español + Pinecone, ahora con re-ranking y evaluación |
 | M5–M6 · Agentes | Grafo con supervisor y especialistas, rúbrica de validación |

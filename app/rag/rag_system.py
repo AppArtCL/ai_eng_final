@@ -118,7 +118,10 @@ class RAGSystem:
         return await self.busqueda.ainvoke(query)
 
     def retrieve(self, query: str) -> list[Document]:
-        """Versión síncrona, para scripts de línea de comandos y la evaluación offline."""
+        """Versión síncrona, para scripts de línea de comandos y la evaluación offline.
+
+        No se llama desde la API ni los workers: ahí se usa `aretrieve`.
+        """
         return self.busqueda.invoke(query)
 
     def _vectorstore_pinecone(self) -> PineconeVectorStore | None:
